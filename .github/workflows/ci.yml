@@ -59,7 +59,7 @@ jobs:
       # Ne s'exécute que sur les PR, et seulement si un des steps ci-dessus a échoué
       - name: Comment PR on failure
         if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             github.rest.issues.createComment({
