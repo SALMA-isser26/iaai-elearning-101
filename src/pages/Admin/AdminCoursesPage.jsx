@@ -1,9 +1,10 @@
 // src/pages/Admin/AdminCoursesPage.jsx
+import { useToast } from '@/components/ui/Toast'
 // But : permettre à l'admin de visualiser et gérer tous les modules du cours.
 // Données réelles depuis Supabase : modules + count leçons + count quiz.
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/services/supabaseClient'
+import { createModule, updateModule, deleteModule, getAllModulesWithStats } from '@/services/courseService'
 
 // ─── Couleurs par ordre_index ─────────────────────────────────────────────────
 const MODULE_COLORS = [
@@ -47,12 +48,14 @@ function CourseSkeleton() {
 }
 
 export default function AdminCoursesPage() {
+  const { toast } = useToast()
   const [modules,      setModules]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState(null)
   const [search,       setSearch]       = useState('')
   const [filterStatus, setFilterStatus] = useState('Tous')
   const [editModal,    setEditModal]    = useState(null)
+  const [createModal,  setCreateModal]  = useState(false)
 
   // ── Charger les modules avec leurs leçons et quiz ───────────────────────────
   useEffect(() => {
@@ -63,54 +66,15 @@ export default function AdminCoursesPage() {
     setLoading(true)
     setError(null)
     try {
-      // 1. Tous les modules
-      const { data: modulesData, error: modError } = await supabase
-        .from('modules')
-        .select('id, title, order_index, is_premium, created_at, updated_at')
-        .order('order_index', { ascending: true })
+      // Modules + compteurs (leçons/quiz/apprenants) agrégés côté SQL
+      // via la fonction RPC get_admin_module_stats (voir courseService.js)
+      const modulesData = await getAllModulesWithStats()
 
-      if (modError) throw modError
-
-      // 2. Count leçons par module
-      const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('module_id')
-
-      // 3. Count quiz par module
-      const { data: quizzesData } = await supabase
-        .from('quizzes')
-        .select('module_id')
-
-      // 4. Count apprenants ayant commencé chaque module (user_progress)
-      const { data: progressData } = await supabase
-        .from('user_progress')
-        .select('module_id, user_id')
-
-      // ── Construire les stats par module ──────────────────────────────────────
-      const lessonsByModule  = {}
-      const quizzesByModule  = {}
-      const enrolledByModule = {}
-
-      ;(lessonsData  || []).forEach(l => { lessonsByModule[l.module_id]  = (lessonsByModule[l.module_id]  || 0) + 1 })
-      ;(quizzesData  || []).forEach(q => { quizzesByModule[q.module_id]  = (quizzesByModule[q.module_id]  || 0) + 1 })
-      // Apprenants uniques par module
-      const enrolledSets = {}
-      ;(progressData || []).forEach(p => {
-        if (!enrolledSets[p.module_id]) enrolledSets[p.module_id] = new Set()
-        enrolledSets[p.module_id].add(p.user_id)
-      })
-      Object.keys(enrolledSets).forEach(mid => {
-        enrolledByModule[mid] = enrolledSets[mid].size
-      })
-
-      const enriched = (modulesData || []).map((mod, idx) => ({
+      const enriched = modulesData.map((mod, idx) => ({
         ...mod,
-        lessons:   lessonsByModule[mod.id]  || 0,
-        quizzes:   quizzesByModule[mod.id]  || 0,
-        enrolled:  enrolledByModule[mod.id] || 0,
         color:     MODULE_COLORS[idx % MODULE_COLORS.length],
-        updatedAt: mod.updated_at
-          ? new Date(mod.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+        updatedAt: mod.created_at
+          ? new Date(mod.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
           : '—',
       }))
 
@@ -123,19 +87,130 @@ export default function AdminCoursesPage() {
     }
   }
 
-  // ── Filtres ──────────────────────────────────────────────────────────────────
+  // ── Suppression d'un module ──────────────────────────────────────────────────
+  const [deletingId, setDeletingId] = useState(null)
+
+  async function handleDelete(mod) {
+    if (mod.lessons > 0 || mod.quizzes > 0) {
+      toast.error(
+        `Impossible de supprimer "${mod.title}" : ce module contient encore ${mod.lessons} leçon(s) et ${mod.quizzes} quiz. Supprimez-les d'abord.`
+      )
+      return
+    }
+    if (!window.confirm(`Supprimer définitivement le module "${mod.title}" ?`)) return
+
+    setDeletingId(mod.id)
+    try {
+      await deleteModule(mod.id)
+      setModules(prev => prev.filter(m => m.id !== mod.id))
+    } catch (err) {
+      console.error('[AdminCoursesPage] delete', err)
+      toast.error("Erreur : la suppression du module a échoué.")
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  // ── Publication / dépublication d'un module ──────────────────────────────────
+  const [publishingId, setPublishingId] = useState(null)
+
+  async function handleTogglePublish(mod) {
+    setPublishingId(mod.id)
+    const nextValue = !mod.is_published
+    try {
+      await updateModule(mod.id, {
+        title: mod.title,
+        description: mod.description,
+        order_index: mod.order_index,
+        is_premium: mod.is_premium,
+        is_published: nextValue,
+      })
+      setModules(prev => prev.map(m => (m.id === mod.id ? { ...m, is_published: nextValue } : m)))
+    } catch (err) {
+      console.error('[AdminCoursesPage] togglePublish', err)
+      toast.error("Erreur : impossible de changer le statut de publication.")
+    } finally {
+      setPublishingId(null)
+    }
+  }
+
+  // ── Création d'un module ─────────────────────────────────────────────────────
+  const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState(null)
+
+  async function handleCreateModule({ title, description, order_index, is_premium, is_published }) {
+    if (!title.trim()) {
+      setFormError('Le titre est obligatoire.')
+      return
+    }
+    setSaving(true)
+    setFormError(null)
+    try {
+      const data = await createModule({
+        title: title.trim(),
+        description: description.trim() || null,
+        order_index,
+        is_premium,
+        is_published,
+      })
+
+      setModules(prev => [...prev, {
+        ...data,
+        lessons: 0,
+        quizzes: 0,
+        enrolled: 0,
+        color: MODULE_COLORS[prev.length % MODULE_COLORS.length],
+        updatedAt: new Date(data.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }),
+      }].sort((a, b) => a.order_index - b.order_index))
+
+      setCreateModal(false)
+    } catch (err) {
+      console.error('[AdminCoursesPage] create', err)
+      setFormError("Erreur : impossible de créer le module. " + (err.message || ''))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Édition d'un module ──────────────────────────────────────────────────────
+  async function handleSaveEdit({ title, description, order_index }) {
+    if (!title.trim()) {
+      setFormError('Le titre est obligatoire.')
+      return
+    }
+    setSaving(true)
+    setFormError(null)
+    try {
+      await updateModule(editModal.id, {
+        title: title.trim(),
+        description: description.trim() || null,
+        order_index,
+        is_premium: editModal.is_premium,
+        is_published: editModal.is_published,
+      })
+
+      setModules(prev => prev
+        .map(m => (m.id === editModal.id ? { ...m, title: title.trim(), description: description.trim() || null, order_index } : m))
+        .sort((a, b) => a.order_index - b.order_index))
+
+      setEditModal(null)
+    } catch (err) {
+      console.error('[AdminCoursesPage] edit', err)
+      setFormError("Erreur : impossible d'enregistrer les modifications. " + (err.message || ''))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+
   const filtered = modules.filter(m => {
     const matchSearch = m.title.toLowerCase().includes(search.toLowerCase())
     const matchStatus =
       filterStatus === 'Tous'      ? true :
-      filterStatus === 'Publié'    ? !m.is_premium || true  // tous les publiés
-                                   : false
-    // Filtre simplifié : Publié = module existant, Brouillon = is_premium non défini
-    const statusMatch =
-      filterStatus === 'Tous'    ? true :
-      filterStatus === 'Publié'  ? true :   // tous les modules en base sont publiés
-      false
-    return matchSearch && statusMatch
+      filterStatus === 'Publié'    ? m.is_published :
+      filterStatus === 'Brouillon' ? !m.is_published :
+      true
+    return matchSearch && matchStatus
   })
 
   // ── KPIs calculés depuis les vraies données ──────────────────────────────────
@@ -153,7 +228,10 @@ export default function AdminCoursesPage() {
             {loading ? '…' : `${modules.length} modules · ${totalLessons} leçons au total`}
           </p>
         </div>
-        <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors">
+        <button
+          onClick={() => { setFormError(null); setCreateModal(true) }}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors"
+        >
           <span className="material-symbols-outlined text-[18px]">add</span>
           Nouveau module
         </button>
@@ -163,7 +241,7 @@ export default function AdminCoursesPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
         {[
           { label: 'Modules total',   value: modules.length, icon: 'menu_book',   color: 'text-violet-600', bg: 'bg-violet-50' },
-          { label: 'Publiés',         value: modules.length, icon: 'public',      color: 'text-green-600',  bg: 'bg-green-50'  },
+          { label: 'Publiés',         value: modules.filter(m => m.is_published).length, icon: 'public',      color: 'text-green-600',  bg: 'bg-green-50'  },
           { label: 'Leçons totales',  value: totalLessons,   icon: 'play_circle', color: 'text-cyan-600',   bg: 'bg-cyan-50'   },
           { label: 'Quiz configurés', value: totalQuizzes,   icon: 'quiz',        color: 'text-pink-600',   bg: 'bg-pink-50'   },
         ].map(k => (
@@ -190,7 +268,7 @@ export default function AdminCoursesPage() {
             className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
           />
         </div>
-        {['Tous', 'Publié'].map(s => (
+        {['Tous', 'Publié', 'Brouillon'].map(s => (
           <button
             key={s}
             onClick={() => setFilterStatus(s)}
@@ -235,10 +313,15 @@ export default function AdminCoursesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h3 className="text-base font-bold text-slate-800">{m.title}</h3>
-                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1 ${statusStyles[true]}`}>
-                      <span className="material-symbols-outlined text-[12px]">{statusIcons[true]}</span>
-                      {statusLabels[true]}
-                    </span>
+                    <button
+                      onClick={() => handleTogglePublish(m)}
+                      disabled={publishingId === m.id}
+                      title="Cliquer pour changer le statut"
+                      className={`text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center gap-1 transition-opacity hover:opacity-80 disabled:opacity-40 ${statusStyles[m.is_published]}`}
+                    >
+                      <span className="material-symbols-outlined text-[12px]">{statusIcons[m.is_published]}</span>
+                      {publishingId === m.id ? '…' : statusLabels[m.is_published]}
+                    </button>
                     {m.is_premium && (
                       <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-violet-100 text-violet-700 flex items-center gap-1">
                         <span className="material-symbols-outlined text-[12px]">workspace_premium</span>
@@ -269,13 +352,17 @@ export default function AdminCoursesPage() {
                 {/* Actions */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => setEditModal(m)}
+                    onClick={() => { setFormError(null); setEditModal(m) }}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-violet-200 text-violet-600 text-xs font-medium hover:bg-violet-50 transition-colors"
                   >
                     <span className="material-symbols-outlined text-[15px]">edit</span>
                     Modifier
                   </button>
-                  <button className="w-8 h-8 rounded-xl hover:bg-red-50 flex items-center justify-center transition-colors">
+                  <button
+                    onClick={() => handleDelete(m)}
+                    disabled={deletingId === m.id}
+                    className="w-8 h-8 rounded-xl hover:bg-red-50 flex items-center justify-center transition-colors disabled:opacity-40"
+                  >
                     <span className="material-symbols-outlined text-[16px] text-red-400">delete</span>
                   </button>
                 </div>
@@ -294,65 +381,151 @@ export default function AdminCoursesPage() {
 
       {/* ── Modal édition ─────────────────────────────────────────────────── */}
       {editModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-slate-800">Module {editModal.order_index} — {editModal.title}</h3>
-              <button onClick={() => setEditModal(null)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center">
-                <span className="material-symbols-outlined text-slate-400 text-[18px]">close</span>
-              </button>
-            </div>
-
-            {/* Stats du module */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              {[
-                { label: 'Leçons',     value: editModal.lessons  },
-                { label: 'Quiz',       value: editModal.quizzes  },
-                { label: 'Apprenants', value: editModal.enrolled },
-              ].map(d => (
-                <div key={d.label} className="bg-slate-50 rounded-xl p-3 text-center">
-                  <p className="text-xl font-bold text-slate-800">{d.value}</p>
-                  <p className="text-xs text-slate-400">{d.label}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Titre du module</label>
-                <input
-                  defaultValue={editModal.title}
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description courte</label>
-                <textarea
-                  rows={3}
-                  defaultValue={editModal.description || ''}
-                  placeholder="Description du module..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setEditModal(null)}
-                className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => setEditModal(null)}
-                className="flex-1 py-3 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors"
-              >
-                Enregistrer
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModuleFormModal
+          key={editModal.id}
+          title={`Module ${editModal.order_index} — ${editModal.title}`}
+          initial={{
+            title: editModal.title,
+            description: editModal.description || '',
+            order_index: editModal.order_index,
+          }}
+          stats={[
+            { label: 'Leçons',     value: editModal.lessons  },
+            { label: 'Quiz',       value: editModal.quizzes  },
+            { label: 'Apprenants', value: editModal.enrolled },
+          ]}
+          saving={saving}
+          error={formError}
+          onCancel={() => { setEditModal(null); setFormError(null) }}
+          onSubmit={handleSaveEdit}
+        />
       )}
+
+      {/* ── Modal création ────────────────────────────────────────────────── */}
+      {createModal && (
+        <ModuleFormModal
+          title="Nouveau module"
+          initial={{
+            title: '',
+            description: '',
+            order_index: modules.length > 0 ? Math.max(...modules.map(m => m.order_index)) + 1 : 1,
+            is_premium: false,
+            is_published: false,
+          }}
+          showPublishFields
+          saving={saving}
+          error={formError}
+          onCancel={() => { setCreateModal(false); setFormError(null) }}
+          onSubmit={handleCreateModule}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Modale réutilisable création / édition ───────────────────────────────────
+function ModuleFormModal({ title, initial, stats, showPublishFields, saving, error, onCancel, onSubmit }) {
+  const [form, setForm] = useState(initial)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+          <button onClick={onCancel} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center">
+            <span className="material-symbols-outlined text-slate-400 text-[18px]">close</span>
+          </button>
+        </div>
+
+        {stats && (
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {stats.map(d => (
+              <div key={d.label} className="bg-slate-50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-slate-800">{d.value}</p>
+                <p className="text-xs text-slate-400">{d.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Titre du module</label>
+            <input
+              value={form.title}
+              onChange={e => setForm({ ...form, title: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description courte</label>
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="Description du module..."
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Ordre d'affichage</label>
+            <input
+              type="number"
+              min={1}
+              value={form.order_index}
+              onChange={e => setForm({ ...form, order_index: parseInt(e.target.value, 10) || 1 })}
+              className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+            />
+          </div>
+
+          {showPublishFields && (
+            <div className="flex gap-6 pt-1">
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_premium}
+                  onChange={e => setForm({ ...form, is_premium: e.target.checked })}
+                  className="rounded border-slate-300 text-violet-600 focus:ring-violet-400"
+                />
+                Contenu premium
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.is_published}
+                  onChange={e => setForm({ ...form, is_published: e.target.checked })}
+                  className="rounded border-slate-300 text-violet-600 focus:ring-violet-400"
+                />
+                Publier immédiatement
+              </label>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={() => onSubmit(form)}
+            disabled={saving}
+            className="flex-1 py-3 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors disabled:opacity-50"
+          >
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

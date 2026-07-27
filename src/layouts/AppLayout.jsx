@@ -1,33 +1,51 @@
 // src/layouts/AppLayout.jsx
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { logout } from '@/services/authService'
 import { ROUTES } from '@/constants/routes'
 import logo from '@/assets/logo-iaai.png'
 import ARIAFloatingAssistant from '@/components/ui/ARIAFloatingAssistant'
-
-const navItems = [
-  { label: 'Tableau de bord', to: ROUTES.DASHBOARD,    icon: 'dashboard' },
-  { label: 'Mon Parcours IA', to: ROUTES.CURRICULUM,   icon: 'school' },
-  { label: 'Mes Certificats', to: ROUTES.CERTIFICATES, icon: 'workspace_premium' },
-  { label: 'Communauté',      to: ROUTES.COMMUNITY,    icon: 'groups' },
-  { label: 'Paramètres',      to: ROUTES.SETTINGS,     icon: 'settings' },
-]
+import LanguageSwitcher from '@/components/ui/LanguageSwitcher'
+import ThemeToggle from '@/components/ui/ThemeToggle'
+import PageTransition from '@/components/layout/PageTransition'
 
 export default function AppLayout() {
+  const { t } = useTranslation()
   const { user, logout: logoutStore } = useAuthStore()
   const navigate = useNavigate()
-
+  const location = useLocation()
   const [searchInput, setSearchInput] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  // navItems recalculé à chaque render → se retraduit au changement de langue
+  const navItems = [
+    { label: t('nav.dashboard'),    to: ROUTES.DASHBOARD,    icon: 'dashboard' },
+    { label: t('nav.catalogue'),    to: ROUTES.CATALOGUE,    icon: 'grid_view' },
+    { label: t('nav.curriculum'),   to: ROUTES.CURRICULUM,   icon: 'school' },
+    { label: t('nav.certificates'), to: ROUTES.CERTIFICATES, icon: 'workspace_premium' },
+    { label: t('nav.community'),    to: ROUTES.COMMUNITY,    icon: 'groups' },
+    { label: t('nav.settings'),     to: ROUTES.SETTINGS,     icon: 'settings' },
+  ]
 
   const initials = user?.fullName
     ? user.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
     : 'U'
 
-  // Plan affiché en sidebar — lu depuis le store (lui-même lu depuis Supabase)
-  const planLabel = user?.plan === 'premium' ? 'Plan Premium' : 'Plan Gratuit'
+  const planLabel = user?.plan === 'premium' ? t('common.unlimited_plan') : t('common.free_plan')
   const isPremium = user?.plan === 'premium'
+
+  // Ferme le tiroir mobile automatiquement à chaque changement de page
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  // Empêche le scroll du body pendant que le tiroir mobile est ouvert
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [menuOpen])
 
   const handleLogout = async () => {
     await logout()
@@ -49,31 +67,47 @@ export default function AppLayout() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-[#f8f5ff] flex">
-
-      {/* ── Sidebar ─────────────────────────────────────────────────────────── */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-[#cfc2d6]
-                        flex flex-col py-2 z-50 hidden lg:flex">
-
-        {/* Logo */}
-        <div className="px-6 py-4 mb-6">
-          <img src={logo} alt="IAAI eLearning 101" className="h-12 w-auto object-contain" />
+  // ── Contenu de la navigation, partagé entre la sidebar desktop et le tiroir mobile ──
+  function SidebarContent() {
+    return (
+      <>
+        {/* Logo + bouton fermeture mobile */}
+        <div className="px-6 py-4 mb-4 flex items-center justify-between">
+          <NavLink to={ROUTES.DASHBOARD} className="hover:opacity-80 transition-opacity">
+            <img src={logo} alt="IAAI eLearning 101" className="h-12 w-auto object-contain" />
+          </NavLink>
+          <button
+            onClick={() => setMenuOpen(false)}
+            className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center
+                       transition-all duration-200 hover:scale-110"
+            style={{ color: 'var(--color-text-muted)', background: 'var(--color-bg-hover)' }}
+            aria-label={t('common.close')}
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 flex flex-col gap-1 px-2">
+        {/* Navigation principale */}
+        <nav className="flex-1 flex flex-col gap-0.5 px-3">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium
+                 transition-all duration-150 ${
                   isActive
-                    ? 'bg-[#f0dbff] text-[#8127cf] font-bold border-r-4 border-[#8127cf]'
-                    : 'text-[#4d4354] hover:bg-[#f0dbff]/50 hover:text-[#8127cf]'
+                    ? 'font-bold border-e-[3px]'
+                    : 'hover:opacity-80'
                 }`
               }
+              style={({ isActive }) => isActive ? {
+                background: 'var(--color-bg-hover)',
+                color: 'var(--color-primary)',
+                borderRightColor: 'var(--color-primary)',
+              } : {
+                color: 'var(--color-text-muted)',
+              }}
             >
               <span className="material-symbols-outlined text-[22px]">{item.icon}</span>
               {item.label}
@@ -81,76 +115,161 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        {/* User card */}
-        <div className="px-4 mt-auto mb-2">
-          <div className="bg-[#f0dbff]/30 rounded-xl p-4 mb-2 border border-[#8127cf]/10">
+        {/* Bas de sidebar : profil + upgrade + actions */}
+        <div className="px-4 mt-auto mb-2 space-y-1">
+
+          {/* Carte profil */}
+          <div
+            className="rounded-xl p-4 mb-2 border"
+            style={{
+              background: 'var(--color-bg-muted)',
+              borderColor: 'var(--color-border)',
+            }}
+          >
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-[#f0dbff] flex items-center
-                              justify-center text-[#8127cf] font-bold text-sm">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center
+                           font-bold text-sm text-white flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-primary) 100%)' }}
+              >
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-[#0b1c30] truncate">
+                <p
+                  className="text-sm font-bold truncate"
+                  style={{ color: 'var(--color-text)' }}
+                >
                   {user?.fullName || 'Utilisateur'}
                 </p>
-                <p className={`text-xs font-medium ${isPremium ? 'text-[#8127cf]' : 'text-[#7e7385]'}`}>
-                  {planLabel}
+                <p
+                  className="text-xs font-medium"
+                  style={{ color: isPremium ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
+                >
+                  {isPremium ? ' ' : ''}{planLabel}
                 </p>
               </div>
             </div>
 
-            {/* Bouton upgrade — masqué si déjà premium */}
             {!isPremium && (
               <button
                 onClick={() => navigate(ROUTES.UPGRADE)}
                 className="w-full py-2.5 rounded-full text-white text-xs font-bold
-                           flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                style={{ background: 'linear-gradient(135deg, #ec4899 0%, #8127cf 100%)' }}
+                           flex items-center justify-center gap-2
+                           transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-primary) 100%)' }}
               >
-                Passer à Illimité
+                {t('nav.upgrade')}
                 <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
               </button>
             )}
           </div>
 
+          {/* Lien profil */}
           <NavLink
             to={ROUTES.PROFILE}
-            className="flex items-center gap-3 px-2 py-2.5 text-[#4d4354]
-                       hover:text-[#8127cf] transition-colors text-sm"
+            className="flex items-center gap-3 px-2 py-2.5 text-sm rounded-xl
+                       transition-colors duration-150 hover:opacity-80"
+            style={{ color: 'var(--color-text-muted)' }}
           >
             <span className="material-symbols-outlined text-[22px]">account_circle</span>
-            Mon Profil
+            {t('nav.profile')}
           </NavLink>
 
+          {/* Déconnexion */}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-2 py-2.5 text-[#4d4354]
-                       hover:text-red-500 transition-colors text-sm w-full"
+            className="flex items-center gap-3 px-2 py-2.5 text-sm w-full rounded-xl
+                       transition-colors duration-150 hover:text-red-500"
+            style={{ color: 'var(--color-text-muted)' }}
           >
             <span className="material-symbols-outlined text-[22px]">logout</span>
-            Déconnexion
+            {t('nav.logout')}
           </button>
         </div>
+      </>
+    )
+  }
+
+  return (
+    <div
+      className="min-h-screen flex theme-transition"
+      style={{ background: 'var(--color-bg)' }}
+    >
+
+      {/* ── Sidebar desktop (>= lg) ─────────────────────────────────────────── */}
+      <aside
+        className="fixed start-0 top-0 h-full w-64 flex flex-col py-2 z-50 hidden lg:flex
+                   border-e theme-transition"
+        style={{
+          background: 'var(--color-bg-sidebar)',
+          borderColor: 'var(--color-border)',
+        }}
+      >
+        <SidebarContent />
+      </aside>
+
+      {/* ── Tiroir mobile (< lg) ───────────────────────────────────────────── */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 lg:hidden backdrop-blur-sm"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed start-0 top-0 h-full w-72 max-w-[85vw]
+                    flex flex-col py-2 z-50 lg:hidden shadow-2xl border-e
+                    transition-all duration-300 ease-out theme-transition
+                    ${menuOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'}`}
+        style={{
+          background: 'var(--color-bg-sidebar)',
+          borderColor: 'var(--color-border)',
+        }}
+        aria-hidden={!menuOpen}
+      >
+        <SidebarContent />
       </aside>
 
       {/* ── Contenu principal ────────────────────────────────────────────────── */}
-      <div className="lg:ml-64 flex-1 flex flex-col">
+      <div className="lg:ms-64 flex-1 flex flex-col w-full">
 
-        {/* Navbar */}
-        <header className="fixed top-0 left-64 right-0 h-16 bg-[#f8f5ff]/80
-                           backdrop-blur-md flex items-center justify-between
-                           px-8 z-40 border-b border-[#f0f0f5]">
+        {/* ── Topbar ── */}
+        <header
+          className="fixed top-0 start-0 lg:start-64 end-0 h-16
+                     flex items-center justify-between gap-3 px-4 md:px-8 z-40
+                     border-b backdrop-blur-md theme-transition"
+          style={{
+            background: 'var(--color-bg-header)',
+            borderColor: 'var(--color-border)',
+          }}
+        >
 
-          {/* Barre de recherche connectée */}
+          {/* Bouton menu mobile */}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="lg:hidden w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center
+                       transition-all duration-200 hover:scale-110"
+            style={{ color: 'var(--color-text-muted)', background: 'var(--color-bg-card)' }}
+            aria-label={t('nav.open_menu')}
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+          </button>
+
+          {/* Barre de recherche */}
           <div
-            className="flex items-center bg-white px-4 py-2 rounded-full
-                        w-80 border border-[#cfc2d6]/30 gap-2 cursor-text
-                        focus-within:border-[#8127cf]/40 transition-colors"
+            className="flex items-center px-4 py-2 rounded-full w-full max-w-80
+                       gap-2 cursor-text transition-all duration-200 border
+                       focus-within:shadow-md"
+            style={{
+              background: 'var(--color-bg-card)',
+              borderColor: 'var(--color-border)',
+            }}
           >
             <button
               onClick={handleSearchClick}
-              className="flex-shrink-0 text-[#7e7385] hover:text-[#8127cf] transition-colors"
-              aria-label="Rechercher"
+              className="flex-shrink-0 transition-colors duration-150 hover:opacity-70"
+              style={{ color: 'var(--color-text-muted)' }}
+              aria-label={t('common.search')}
             >
               <span className="material-symbols-outlined text-[20px]">search</span>
             </button>
@@ -159,38 +278,60 @@ export default function AppLayout() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={handleSearch}
-              placeholder="Rechercher un cours…"
-              className="bg-transparent border-none focus:outline-none text-sm
-                         text-[#0b1c30] placeholder:text-[#7e7385] w-full"
+              placeholder={t('nav.search')}
+              className="bg-transparent border-none focus:outline-none text-sm w-full"
+              style={{ color: 'var(--color-text)' }}
             />
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Actions topbar */}
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+
+            {/* Switcher de langue */}
+            <span className="hidden sm:block">
+              <LanguageSwitcher variant="pill" />
+            </span>
+
+            {/* Toggle thème — l'essentiel ! */}
+            <ThemeToggle variant="icon" />
+
+            {/* Notifications */}
             <button
               onClick={() => navigate('/notifications')}
               className="w-10 h-10 rounded-full flex items-center justify-center
-                         hover:bg-white transition-colors"
+                         transition-all duration-200 hover:scale-110"
+              style={{ color: 'var(--color-text-muted)', background: 'var(--color-bg-card)' }}
+              aria-label={t('nav.notifications')}
             >
-              <span className="material-symbols-outlined text-[#4d4354]">notifications</span>
+              <span className="material-symbols-outlined">notifications</span>
             </button>
-            <div
+
+            {/* Avatar profil */}
+            <button
               onClick={() => navigate(ROUTES.PROFILE)}
-              className="w-10 h-10 rounded-full bg-[#f0dbff] flex items-center
-                          justify-center text-[#8127cf] font-bold text-sm
-                          border border-[#8127cf]/20 cursor-pointer hover:ring-2
-                          hover:ring-[#8127cf]/30 transition-all"
+              className="w-10 h-10 rounded-full flex items-center justify-center
+                         text-white font-bold text-sm border-2
+                         transition-all duration-200 hover:scale-110
+                         hover:shadow-lg flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-primary) 100%)',
+                borderColor: 'var(--color-border)',
+                boxShadow: '0 0 0 0 rgba(129, 39, 207, 0)',
+              }}
             >
               {initials}
-            </div>
+            </button>
           </div>
         </header>
 
-        <main className="mt-16 p-8 flex-1">
-          <Outlet />
+        {/* ── Page content ── */}
+        <main className="mt-16 p-4 md:p-8 flex-1 w-full overflow-x-hidden">
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
 
-      {/* ARIA Assistant flottant */}
       <ARIAFloatingAssistant />
 
     </div>

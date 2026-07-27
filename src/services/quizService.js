@@ -40,55 +40,18 @@ export async function getQuizByModule(moduleId) {
 // CORRECTION : vérification défensive si questions.length === 0
 // pour éviter une division par zéro.
 
-export async function submitQuizAttempt(userId, quizId, moduleId, answers, passingScore = 80) {
-  // answers = [{ questionId, answerId }]
-
-  // Récupérer les bonnes réponses depuis la base
-  // (ne pas se fier aux réponses côté client — sécurité)
-  const { data: questions, error: qError } = await supabase
-    .from('questions')
-    .select('id, answers(id, is_correct)')
-    .eq('quiz_id', quizId)
-
-  if (qError) throw qError
-
-  if (!questions || questions.length === 0) {
-    throw new Error('Aucune question trouvée pour ce quiz.')
-  }
-
-  // Filtrer les réponses nulles (questions sautées en cas d'expiration du timer)
-  const validAnswers = answers.filter(a => a.answerId !== null && a.answerId !== undefined)
-
-  // Calculer le score
-  let correct = 0
-  for (const answer of validAnswers) {
-    const question = questions.find(q => q.id === answer.questionId)
-    if (!question) continue
-    const selectedAnswer = question.answers.find(a => a.id === answer.answerId)
-    if (selectedAnswer?.is_correct) correct++
-  }
-
-  const score  = Math.round((correct / questions.length) * 100)
-  const passed = score >= passingScore  // ✅ utilise le seuil du quiz, pas 80 en dur
-
-  // Enregistrer la tentative
+export async function submitQuizAttempt(_userId, quizId, _moduleId, answers, _passingScore = 80) {
+  // Le calcul et l'insertion sont réalisés côté base. Le client ne fournit plus
+  // le score, le statut de réussite ni le module à enregistrer.
   const { data, error } = await supabase
-    .from('quiz_attempts')
-    .insert({
-      user_id:      userId,
-      quiz_id:      quizId,
-      module_id:    moduleId,
-      score,
-      passed,
-      answers_given: validAnswers,
-      attempted_at: new Date().toISOString(),
+    .rpc('submit_quiz_attempt', {
+      p_quiz_id: quizId,
+      p_answers: answers,
     })
-    .select()
     .single()
 
   if (error) throw error
-
-  return { ...data, correct, total: questions.length, score, passed }
+  return data
 }
 
 // ─── Récupérer les tentatives d'un utilisateur ───────────────────────────────
@@ -118,4 +81,158 @@ export async function getBestScore(userId, quizId) {
 
   if (error) return null
   return data
+}
+
+// ─── CRUD Quiz (Admin) ────────────────────────────────────────────────────────
+
+export async function getAllQuizzes() {
+  const { data, error } = await supabase
+    .from('quizzes')
+    .select('*, modules(title)')
+    .order('module_id', { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function createQuiz(quizData) {
+  const { data, error } = await supabase
+    .from('quizzes')
+    .insert({
+      module_id: quizData.module_id,
+      title: quizData.title,
+      description: quizData.description || null,
+      time_limit_minutes: quizData.time_limit_minutes || null,
+      passing_score: quizData.passing_score || 80,
+      is_published: quizData.is_published !== undefined ? quizData.is_published : false,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateQuiz(quizId, quizData) {
+  const { data, error } = await supabase
+    .from('quizzes')
+    .update({
+      module_id: quizData.module_id,
+      title: quizData.title,
+      description: quizData.description,
+      time_limit_minutes: quizData.time_limit_minutes,
+      passing_score: quizData.passing_score,
+      is_published: quizData.is_published,
+    })
+    .eq('id', quizId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteQuiz(quizId) {
+  const { error } = await supabase
+    .from('quizzes')
+    .delete()
+    .eq('id', quizId)
+
+  if (error) throw error
+  return true
+}
+
+// ─── CRUD Questions (Admin) ───────────────────────────────────────────────────
+
+export async function getQuestionsByQuiz(quizId) {
+  const { data, error } = await supabase
+    .from('questions')
+    .select('*, answers(*)')
+    .eq('quiz_id', quizId)
+    .order('order_index', { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+export async function createQuestion(questionData) {
+  const { data, error } = await supabase
+    .from('questions')
+    .insert({
+      quiz_id: questionData.quiz_id,
+      question_text: questionData.question_text,
+      order_index: questionData.order_index || 0,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateQuestion(questionId, questionData) {
+  const { data, error } = await supabase
+    .from('questions')
+    .update({
+      question_text: questionData.question_text,
+      order_index: questionData.order_index,
+    })
+    .eq('id', questionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteQuestion(questionId) {
+  const { error } = await supabase
+    .from('questions')
+    .delete()
+    .eq('id', questionId)
+
+  if (error) throw error
+  return true
+}
+
+// ─── CRUD Answers (Admin) ─────────────────────────────────────────────────────
+
+export async function createAnswer(answerData) {
+  const { data, error } = await supabase
+    .from('answers')
+    .insert({
+      question_id: answerData.question_id,
+      answer_text: answerData.answer_text,
+      is_correct: answerData.is_correct || false,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function updateAnswer(answerId, answerData) {
+  const { data, error } = await supabase
+    .from('answers')
+    .update({
+     answer_text: answerData.answer_text,
+      is_correct: answerData.is_correct,
+    })
+    .eq('id', answerId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteAnswer(answerId) {
+  const { error } = await supabase
+    .from('answers')
+    .delete()
+    .eq('id', answerId)
+
+  if (error) throw error
+  return true
 }

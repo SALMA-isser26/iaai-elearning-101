@@ -4,6 +4,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@14?target=deno";
+import { corsHeadersFor } from "../_shared/cors.ts";
 
 const STRIPE_SECRET_KEY   = Deno.env.get("STRIPE_SECRET_KEY")   ?? "";
 const STRIPE_PRICE_ID     = Deno.env.get("STRIPE_PRICE_ID")     ?? "";
@@ -18,12 +19,9 @@ const stripe = new Stripe(STRIPE_SECRET_KEY, {
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin":  "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
+
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

@@ -1,9 +1,7 @@
 // src/pages/Settings/SettingsPage.jsx
+import { useToast } from '@/components/ui/Toast'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { Link } from 'react-router-dom'
-import { ROUTES } from '@/constants/routes'
-import { useTranslation } from 'react-i18next'
 import i18n from '@/i18n'
 import {
   loadUserSettings,
@@ -93,8 +91,8 @@ function SettingsSkeleton() {
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { toast } = useToast()
   const { user, updateUser } = useAuthStore()
-  const { t } = useTranslation()
 
   const [activeSection, setActiveSection] = useState('compte')
   const [loading, setLoading]             = useState(true)
@@ -215,7 +213,7 @@ export default function SettingsPage() {
       setAvatarUrl(url)
       updateUser({ avatarUrl: url })
     } catch (err) {
-      alert(err.message)
+      toast.error(err.message)
     } finally {
       setAvatarUploading(false)
     }
@@ -335,7 +333,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-semibold text-[#17132f]">{fullName}</p>
                     <p className="text-xs text-[#68627a] mt-0.5">
-                      {user?.plan === 'premium' ? '⭐ Plan Premium' : 'Plan Gratuit'}
+                      {user?.plan === 'premium' ? 'Plan Premium' : 'Plan Gratuit'}
                     </p>
                     <button
                       onClick={() => fileInputRef.current?.click()}

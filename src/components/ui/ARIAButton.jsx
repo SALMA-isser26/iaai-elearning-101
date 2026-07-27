@@ -1,12 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   MessageSquare, 
   X, 
   Send, 
-  Sparkles, 
   Brain, 
-  HelpCircle,
-  Maximize2
 } from 'lucide-react';
 
 export default function ARIAButton() {

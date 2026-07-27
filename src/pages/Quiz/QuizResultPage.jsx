@@ -1,13 +1,12 @@
 // src/pages/Quiz/QuizResultPage.jsx
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/store/authStore'
-import { generateCertificate } from '@/services/certificateService'
+import { checkCertificateEligibility, generateCertificate } from '@/services/certificateService'
 import { supabase } from '@/services/supabaseClient'
 
 export default function QuizResultPage() {
-  const { id } = useParams()
   const location = useLocation()
   const { user } = useAuthStore()
 
@@ -19,27 +18,40 @@ export default function QuizResultPage() {
     quizTitle    = 'Quiz',
     moduleId     = null,
     passingScore = 80,
+    invalidated  = false,
   } = location.state || {}
 
   const [certGenerated, setCertGenerated] = useState(false)
   const [certLoading, setCertLoading]     = useState(false)
+  const [certEligible, setCertEligible]   = useState(false)
 
-  // ── Générer le certificat si quiz réussi ────────────────────────────────────
+  // ── Générer le certificat SEULEMENT si tout le parcours est terminé ────────
+  //
+  // CORRECTION : auparavant on générait un certificat dès que CE quiz était
+  // réussi, sans vérifier les autres modules. Il n'y a qu'un seul certificat
+  // pour l'ensemble du cursus : on vérifie d'abord l'éligibilité globale
+  // (checkCertificateEligibility), et on ne l'émet que si tous les modules
+  // sont complétés.
   useEffect(() => {
-    if (!passed || !user?.id || !moduleId) return
+    if (invalidated || !passed || !user?.id) return
 
     const generate = async () => {
       setCertLoading(true)
       try {
-        await generateCertificate(user.id, moduleId)
-        setCertGenerated(true)
+        const { eligible } = await checkCertificateEligibility(user.id)
+        setCertEligible(eligible)
 
-        await supabase.from('user_activity').insert({
-          user_id: user.id,
-          type: 'certificate',
-          title: `Certificat obtenu — ${quizTitle}`,
-          detail: `${scorePercent}%`,
-        })
+        if (eligible) {
+          await generateCertificate(user.id)
+          setCertGenerated(true)
+
+          await supabase.from('user_activity').insert({
+            user_id: user.id,
+            type: 'certificate',
+            title: `Certificat obtenu — parcours complet`,
+            detail: `${scorePercent}%`,
+          })
+        }
       } catch (err) {
         // Certificat déjà existant = pas une erreur bloquante
         setCertGenerated(true)
@@ -50,7 +62,7 @@ export default function QuizResultPage() {
     }
 
     generate()
-  }, [passed, user?.id, moduleId])
+  }, [passed, user?.id, quizTitle, scorePercent])
 
   // ── Animation du score ───────────────────────────────────────────────────────
   const [displayScore, setDisplayScore] = useState(0)
@@ -71,6 +83,59 @@ export default function QuizResultPage() {
     }, 16)
     return () => clearInterval(counter)
   }, [scorePercent])
+
+  // ── Écran dédié : quiz invalidé pour sortie d'onglet/fenêtre ────────────────
+  if (invalidated) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-red-500/5 blur-[100px] rounded-full pointer-events-none" />
+
+        <div className="w-full max-w-2xl bg-white rounded-2xl border border-red-200
+                        p-10 md:p-16 flex flex-col items-center text-center relative z-10 shadow-sm">
+
+          <div className="w-32 h-32 flex items-center justify-center rounded-full bg-red-50 mb-8">
+            <span className="material-symbols-outlined text-[80px] text-red-500">block</span>
+          </div>
+
+          <h2 className="text-3xl font-bold font-display mb-2 text-red-600">
+            Quiz invalidé
+          </h2>
+          <p className="text-lg text-[#7e7385] mb-2 max-w-md">
+            Une sortie de l'onglet ou de la fenêtre a été détectée pendant{' '}
+            <span className="font-semibold text-[#0b1c30]">{quizTitle}</span>.
+          </p>
+          <p className="text-sm text-[#a89fb5] mb-10 max-w-md">
+            Pour garantir l'intégrité des résultats, le quiz est automatiquement annulé
+            dès qu'un changement d'onglet ou d'application est détecté. Cet événement
+            a été enregistré.
+          </p>
+
+          <div className="flex flex-col md:flex-row gap-4 w-full justify-center">
+            <Link
+              to={ROUTES.QUIZ(moduleId)}
+              className="px-8 py-4 rounded-full text-white font-bold text-sm
+                         flex items-center justify-center gap-2
+                         hover:shadow-lg active:scale-[0.98] transition-all"
+              style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
+            >
+              Recommencer le quiz
+              <span className="material-symbols-outlined text-[18px]">refresh</span>
+            </Link>
+            <Link
+              to={ROUTES.MODULE(moduleId)}
+              className="px-8 py-4 border-2 border-[#8127cf]/20 text-[#8127cf]
+                         rounded-full font-bold text-sm
+                         flex items-center justify-center gap-2
+                         hover:bg-[#8127cf]/5 active:scale-[0.98] transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]">menu_book</span>
+              Revoir le module
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   // ── Cercle SVG ───────────────────────────────────────────────────────────────
   const radius = 88
@@ -113,8 +178,9 @@ export default function QuizResultPage() {
             : `Score minimum requis : ${passingScore}% — Vous avez obtenu ${scorePercent}%`}
         </p>
 
-        {/* Badge certificat */}
-        {passed && (
+        {/* Badge certificat — CORRECTION : ne s'affiche que si le parcours */}
+        {/* complet est éligible (ou déjà généré), pas à chaque quiz réussi. */}
+        {passed && (certLoading || certEligible || certGenerated) && (
           <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold mb-6
                           ${certGenerated
                             ? 'bg-green-50 text-green-700 border border-green-200'
@@ -122,7 +188,7 @@ export default function QuizResultPage() {
             <span className="material-symbols-outlined text-[18px]">
               {certGenerated ? 'verified' : certLoading ? 'hourglass_empty' : 'workspace_premium'}
             </span>
-            {certGenerated ? 'Certificat généré !' : certLoading ? 'Génération...' : 'Certificat disponible'}
+            {certGenerated ? 'Certificat généré !' : certLoading ? 'Vérification...' : 'Certificat disponible'}
           </div>
         )}
 

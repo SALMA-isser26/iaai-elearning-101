@@ -1,7 +1,6 @@
 # supabase/config.toml
 # Configuration du projet Supabase IAAI eLearning 101
 
-[project]
 project_id = "jabcimevpdmdgzezhdgn"
 
 # ── Edge Functions ─────────────────────────────────────────────────────────────

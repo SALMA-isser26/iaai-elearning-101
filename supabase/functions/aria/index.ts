@@ -3,6 +3,7 @@
 // Déploiement : supabase functions deploy aria --project-ref jabcimevpdmdgzezhdgn
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeadersFor } from "../_shared/cors.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
 const SUPABASE_URL   = Deno.env.get("SB_URL")   ?? "";
@@ -11,12 +12,9 @@ const SUPABASE_KEY   = Deno.env.get("SB_SERVICE_ROLE_KEY") ?? "";
 const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`;
 const CHAT_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin":  "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
+
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

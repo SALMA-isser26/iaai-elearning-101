@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 
 export default function PaymentSuccessPage() {
   const [searchParams] = useSearchParams()
-  const { refreshProfile, user } = useAuthStore()
+  const { refreshProfile } = useAuthStore()
   const [refreshed, setRefreshed] = useState(false)
   const sessionId = searchParams.get('session_id')
 
@@ -33,7 +33,7 @@ export default function PaymentSuccessPage() {
     // Attendre 1s que le webhook Stripe ait le temps de traiter
     const timer = setTimeout(tryRefresh, 1000)
     return () => clearTimeout(timer)
-  }, [])
+  }, [refreshProfile])
 
   return (
     <div className="min-h-screen bg-[#f8f5ff] flex items-center justify-center p-4">

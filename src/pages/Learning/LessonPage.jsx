@@ -1,12 +1,16 @@
 // src/pages/Learning/LessonPage.jsx
-import { useState, useEffect } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { ROUTES } from '@/constants/routes'
 import { useAuthStore } from '@/store/authStore'
 import { getLessonById, getLessonsByModule } from '@/services/courseService'
 import { markLessonComplete, getProgressByModule } from '@/services/progressService'
 import { supabase } from '@/services/supabaseClient'
+import { createLessonTimeTracker } from '@/services/activityService'
+import { isLessonBookmarked, toggleBookmark } from '@/services/bookmarkService'
+import { getNote, saveNote } from '@/services/notesService'
 import VideoPlayer from '@/components/ui/VideoPlayer'
+import { Bookmark, BookmarkCheck } from 'lucide-react'
 // ─── Skeleton loader ─────────────────────────────────────────────────────────
 function LessonSkeleton() {
   return (
@@ -30,78 +34,53 @@ function LessonSkeleton() {
   )
 }
 
-// ─── Composant VideoPlayer YouTube ───────────────────────────────────────────
-// function VideoPlayer({ videoUrl }) {
-//   // Extraire l'ID YouTube depuis l'URL
-//   const getYoutubeId = (url) => {
-//     if (!url) return null
-//     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)
-//     return match ? match[1] : null
-//   }
-
-//   const videoId = getYoutubeId(videoUrl)
-
-//   if (!videoId) {
-//     return (
-//       <div className="relative w-full aspect-video bg-[#0d0d0d] rounded-2xl
-//                       overflow-hidden shadow-xl border border-white/10
-//                       flex items-center justify-center">
-//         <div className="text-center space-y-4">
-//           <span className="material-symbols-outlined text-[80px] text-white/20">
-//             play_circle
-//           </span>
-//           <p className="text-white/40 text-sm">Vidéo bientôt disponible</p>
-//         </div>
-//       </div>
-//     )
-//   }
-
-//   return (
-//     <div className="relative w-full aspect-video rounded-2xl overflow-hidden shadow-xl border border-white/10">
-//       <iframe
-//         className="w-full h-full"
-//         src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-//         title="Leçon vidéo"
-//         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-//         allowFullScreen
-//       />
-//     </div>
-//   )
-// }
-
 // ─── Composant Notes (markdown simplifié) ────────────────────────────────────
 function LessonNotes({ notes }) {
   if (!notes) return null
 
+  // Certaines leçons ont été enregistrées avec des séquences "\n" littérales
+  // (backslash + n, deux caractères texte) au lieu de vrais retours à la ligne.
+  // On les normalise avant tout traitement.
+  const normalized = notes.replace(/\\n/g, '\n')
+
+  // Convertit les **portions en gras** au milieu d'une ligne en <strong>,
+  // au lieu de ne gérer que les lignes entièrement encadrées par **.
+  const renderInline = (text) => {
+    const segments = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean)
+    return segments.map((seg, i) => {
+      if (seg.startsWith('**') && seg.endsWith('**')) {
+        return <strong key={i} className="font-bold text-[#0b1c30]">{seg.slice(2, -2)}</strong>
+      }
+      return <span key={i}>{seg}</span>
+    })
+  }
+
   // Rendu basique du markdown (gras, code, listes)
   const renderLine = (line, i) => {
     if (line.startsWith('## ')) {
-      return <h3 key={i} className="text-lg font-bold text-[#0b1c30] mt-4 mb-2">{line.slice(3)}</h3>
+      return <h3 key={i} className="text-lg font-bold text-[#0b1c30] mt-4 mb-2">{renderInline(line.slice(3))}</h3>
     }
     if (line.startsWith('### ')) {
-      return <h4 key={i} className="text-base font-bold text-[#0b1c30] mt-3 mb-1">{line.slice(4)}</h4>
+      return <h4 key={i} className="text-base font-bold text-[#0b1c30] mt-3 mb-1">{renderInline(line.slice(4))}</h4>
     }
     if (line.startsWith('- ') || line.startsWith('* ')) {
       return (
         <li key={i} className="ml-4 text-sm text-[#4d4354] leading-relaxed list-disc">
-          {line.slice(2)}
+          {renderInline(line.slice(2))}
         </li>
       )
     }
     if (line.startsWith('```')) {
       return null // géré dans le bloc
     }
-    if (line.startsWith('**') && line.endsWith('**')) {
-      return <p key={i} className="font-bold text-[#0b1c30] text-sm">{line.slice(2, -2)}</p>
-    }
     if (line.trim() === '') {
       return <div key={i} className="h-2" />
     }
-    return <p key={i} className="text-sm text-[#4d4354] leading-relaxed">{line}</p>
+    return <p key={i} className="text-sm text-[#4d4354] leading-relaxed">{renderInline(line)}</p>
   }
 
   // Séparer les blocs de code
-  const parts = notes.split('```')
+  const parts = normalized.split('```')
   return (
     <div className="space-y-1">
       {parts.map((part, idx) => {
@@ -139,7 +118,6 @@ function LessonNotes({ notes }) {
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function LessonPage() {
   const { id } = useParams()
-  const navigate = useNavigate()
   const { user } = useAuthStore()
 
   const [lesson, setLesson]           = useState(null)
@@ -150,6 +128,14 @@ export default function LessonPage() {
   const [completing, setCompleting]   = useState(false)
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
+  const [timeTracker, setTimeTracker] = useState(null)
+  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [bookmarkLoading, setBookmarkLoading] = useState(false)
+
+  // ── Notes personnelles (table lesson_notes) ─────────────────────────────────
+  const [myNote, setMyNote]           = useState('')
+  const [noteStatus, setNoteStatus]   = useState('idle') // idle | saving | saved | error
+  const noteDebounceRef               = useRef(null)
 
   // ── Charger la leçon ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -179,6 +165,20 @@ export default function LessonPage() {
             .eq('lesson_id', id)
             .single()
           setIsCompleted(existing?.completed || false)
+
+          // Vérifier si cette leçon est en favoris
+          const { isBookmarked: bookmarked } = await isLessonBookmarked(user.id, id)
+          setIsBookmarked(bookmarked)
+
+          // Charger la note personnelle existante pour cette leçon
+          const { note } = await getNote(user.id, id)
+          setMyNote(note?.content || '')
+          setNoteStatus('idle')
+
+          // Démarrer le tracking du temps passé sur la leçon
+          const tracker = createLessonTimeTracker(user.id, id, lessonData.module_id)
+          setTimeTracker(tracker)
+          tracker.startTracking()
         }
       } catch (err) {
         console.error('Erreur chargement leçon:', err)
@@ -206,6 +206,15 @@ export default function LessonPage() {
     loadQuiz()
   }, [id, user?.id])
 
+  // Arrêter le tracking quand on quitte la page
+  useEffect(() => {
+    return () => {
+      if (timeTracker) {
+        timeTracker.stopTracking()
+      }
+    }
+  }, [timeTracker])
+
   // ── Marquer comme complétée ──────────────────────────────────────────────────
   const handleComplete = async () => {
     if (!user?.id || !lesson || isCompleted || completing) return
@@ -232,6 +241,49 @@ export default function LessonPage() {
       setCompleting(false)
     }
   }
+
+  // ── Basculer le favori ───────────────────────────────────────────────────────
+  const handleToggleBookmark = async () => {
+    if (!user?.id || !lesson || bookmarkLoading) return
+    setBookmarkLoading(true)
+    try {
+      await toggleBookmark(user.id, lesson.id)
+      setIsBookmarked(!isBookmarked)
+    } catch (err) {
+      console.error('Erreur basculement favori:', err)
+    } finally {
+      setBookmarkLoading(false)
+    }
+  }
+
+  // ── Note personnelle : sauvegarde différée (1.2s après la dernière frappe) ──
+  const pendingNoteRef = useRef(null) // { userId, lessonId, value } — dernière frappe non encore confirmée en base
+
+  const handleNoteChange = (value) => {
+    setMyNote(value)
+    setNoteStatus('idle')
+    pendingNoteRef.current = { userId: user?.id, lessonId: id, value }
+    clearTimeout(noteDebounceRef.current)
+    noteDebounceRef.current = setTimeout(async () => {
+      if (!user?.id || !id) return
+      setNoteStatus('saving')
+      const { error } = await saveNote(user.id, id, value)
+      pendingNoteRef.current = null
+      setNoteStatus(error ? 'error' : 'saved')
+    }, 1200)
+  }
+
+  // Forcer l'enregistrement en quittant la page si une frappe n'a pas encore
+  // été confirmée en base (évite de perdre les 1.2 dernières secondes de saisie).
+  useEffect(() => {
+    return () => {
+      clearTimeout(noteDebounceRef.current)
+      const pending = pendingNoteRef.current
+      if (pending?.userId && pending?.lessonId) {
+        saveNote(pending.userId, pending.lessonId, pending.value)
+      }
+    }
+  }, [])
 
   // ── Navigation ───────────────────────────────────────────────────────────────
   const currentIndex = siblings.findIndex(l => l.id === id)
@@ -289,15 +341,35 @@ export default function LessonPage() {
         <div className="flex-1 space-y-6">
 
           {/* Titre */}
-          <div>
-            <p className="text-sm text-[#7e7385] mb-1">{moduleTitle}</p>
-            <h2 className="text-2xl font-bold font-display text-[#0b1c30]">
-              Leçon {lessonNumber} — {lesson.title}
-            </h2>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-[#7e7385] mb-1">{moduleTitle}</p>
+              <h2 className="text-2xl font-bold font-display text-[#0b1c30]">
+                Leçon {lessonNumber} — {lesson.title}
+              </h2>
+            </div>
+            
+            {/* Bouton favori */}
+            {user?.id && (
+              <button
+                onClick={handleToggleBookmark}
+                disabled={bookmarkLoading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 hover:border-violet-300 hover:bg-violet-50 transition-colors disabled:opacity-50"
+                title={isBookmarked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                {isBookmarked ? (
+                  <BookmarkCheck className="w-5 h-5 text-violet-600 fill-violet-600" />
+                ) : (
+                  <Bookmark className="w-5 h-5 text-gray-500" />
+                )}
+                <span className="text-sm font-medium text-gray-700">
+                  {isBookmarked ? 'Retirer' : 'Favori'}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Lecteur vidéo */}
-          {/* <VideoPlayer videoUrl={lesson.video_url}/> */}
           <VideoPlayer
            src={lesson.video_url}
            title={lesson.title}
@@ -352,6 +424,32 @@ export default function LessonPage() {
             </div>
           )}
 
+          {/* Notes personnelles de l'apprenant */}
+          {user?.id && (
+            <div className="bg-white rounded-2xl border border-[#8127cf]/10 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-[#8127cf] text-[22px]">edit_note</span>
+                  <h3 className="text-base font-bold font-display text-[#0b1c30]">Mes notes</h3>
+                </div>
+                <span className="text-xs text-[#7e7385]">
+                  {noteStatus === 'saving' && 'Enregistrement…'}
+                  {noteStatus === 'saved'  && '✓ Enregistré'}
+                  {noteStatus === 'error'  && 'Erreur d\'enregistrement'}
+                </span>
+              </div>
+              <textarea
+                value={myNote}
+                onChange={(e) => handleNoteChange(e.target.value)}
+                placeholder="Prenez vos notes personnelles pendant la leçon — elles sont privées et sauvegardées automatiquement."
+                rows={5}
+                className="w-full resize-y rounded-xl border border-[#e5e0f0] p-4 text-sm text-[#4d4354]
+                           leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#8127cf]/30 focus:border-[#8127cf]/40
+                           placeholder:text-[#a89fb0]"
+              />
+            </div>
+          )}
+
           {/* Navigation leçons */}
           <div className="flex items-center justify-between py-4">
             {prevLesson ? (
@@ -398,7 +496,7 @@ export default function LessonPage() {
             ) : (
               quizId ? (
                 <Link
-                  to={ROUTES.QUIZ(quizId)}
+                  to={ROUTES.QUIZ(lesson.module_id)}
                   className="flex items-center gap-2 px-8 py-3 rounded-xl
                              text-white font-bold text-sm transition-all
                              hover:scale-105 active:scale-95"

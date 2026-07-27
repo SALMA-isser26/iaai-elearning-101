@@ -1,9 +1,15 @@
 // src/pages/Auth/VerifyEmailPage.jsx
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/services/supabaseClient'
 import { useAuthStore } from '@/store/authStore'
 import { ROUTES } from '@/constants/routes'
+import AuthHeader from '@/components/ui/AuthHeader'
+import AuthVisual from '@/components/ui/AuthVisual'
+import OtpInput from '@/components/ui/OtpInput'
+
+const OTP_LENGTH = 8
+const RESEND_COOLDOWN = 60 // secondes
 
 function VerifyEmailPage() {
   const navigate = useNavigate()
@@ -12,154 +18,169 @@ function VerifyEmailPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [resent, setResent] = useState(false)
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN)
 
-  // Récupère l'email depuis localStorage (sauvegardé au moment de l'inscription)
   const email = localStorage.getItem('iaai-pending-email') || ''
 
-  const handleVerify = async (e) => {
-    e.preventDefault()
-    setError(null)
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setInterval(() => setCooldown((c) => Math.max(0, c - 1)), 1000)
+    return () => clearInterval(timer)
+  }, [cooldown])
 
-    if (otp.length !== 6) {
-      setError('Le code doit contenir 6 chiffres.')
+  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+
+  const handleVerify = useCallback(async (code) => {
+    if (code.length !== OTP_LENGTH) {
+      setError(`Le code doit contenir ${OTP_LENGTH} chiffres.`)
       return
     }
 
+    setError(null)
     setIsLoading(true)
     try {
       const { data, error } = await supabase.auth.verifyOtp({
         email,
-        token: otp,
+        token: code,
         type: 'signup',
       })
 
       if (error) throw error
 
-      // Connecter l'utilisateur dans le store
-      setUser(
-        {
-          id: data.user.id,
-          email: data.user.email,
-          fullName: data.user.user_metadata?.full_name || '',
-          role: data.user.user_metadata?.role || 'LEARNER',
-          isOnboardingComplete: false,
-        },
-        data.session.access_token
-      )
+      await setUser({
+        id: data.user.id,
+        email: data.user.email,
+        fullName: data.user.user_metadata?.full_name || '',
+        role: data.user.user_metadata?.role || 'LEARNER',
+        isOnboardingComplete: false,
+      })
 
-      // Nettoyer le localStorage
       localStorage.removeItem('iaai-pending-email')
-
-      // Rediriger vers l'onboarding
       navigate(ROUTES.ONBOARDING_1)
     } catch {
       setError('Code invalide ou expiré. Vérifie ton email.')
     } finally {
       setIsLoading(false)
     }
+  }, [email, navigate, setUser])
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    handleVerify(otp)
+  }
+
+  const handleOtpChange = (val) => {
+    setOtp(val)
+    setError(null)
+    if (val.length === OTP_LENGTH) {
+      handleVerify(val)
+    }
   }
 
   const handleResend = async () => {
     setError(null)
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-      })
+      const { error } = await supabase.auth.resend({ type: 'signup', email })
       if (error) throw error
       setResent(true)
+      setCooldown(RESEND_COOLDOWN)
       setTimeout(() => setResent(false), 5000)
-    } catch  {
+    } catch {
       setError('Impossible de renvoyer le code.')
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f5ff] flex items-center justify-center px-6">
-      <section className="w-full max-w-md bg-white rounded-2xl border border-violet-100 p-8 shadow-sm">
+    <div className="min-h-screen bg-[#f8f5ff] font-sans antialiased">
 
-        {/* Icône */}
-        <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center mb-6 mx-auto">
-          <span className="material-symbols-outlined text-violet-700 text-[32px]">
-            mark_email_unread
-          </span>
-        </div>
+      <AuthHeader />
 
-        {/* Titre */}
-        <h1 className="text-2xl font-bold text-[#0b1c30] font-display text-center">
-          Vérifiez votre email
-        </h1>
-        <p className="mt-2 text-sm text-[#7e7385] text-center">
-          Un code à 6 chiffres a été envoyé à
-        </p>
-        {email && (
-          <p className="text-sm font-semibold text-violet-700 text-center mt-1">
-            {email}
-          </p>
-        )}
+      <main className="flex items-center justify-center pb-12 px-2">
+        <div className="w-full max-w-[1200px] px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-        {/* Erreur */}
-        {error && (
-          <div className="mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm text-center">
-            {error}
-          </div>
-        )}
+          <section className="flex flex-col space-y-8">
 
-        {/* Succès renvoi */}
-        {resent && (
-          <div className="mt-4 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-600 text-sm text-center flex items-center justify-center gap-2">
-            <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-            Code renvoyé avec succès
-          </div>
-        )}
+            <div className="space-y-3">
+              <h1 className="text-4xl md:text-5xl font-bold text-[#0b1c30] tracking-tight font-display">
+                Entrez votre code
+              </h1>
+              <p className="text-lg text-[#7e7385]">
+                Code envoyé à{' '}
+                {email && <span className="font-semibold text-[#8127cf]">{email}</span>}
+              </p>
+            </div>
 
-        {/* Formulaire OTP */}
-        <form className="mt-6 space-y-4" onSubmit={handleVerify}>
-          <input
-            type="text"
-            value={otp}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, '').slice(0, 6)
-              setOtp(val)
-              setError(null)
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+
+            {resent && (
+              <div className="px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-600 text-sm flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                Code renvoyé avec succès
+              </div>
+            )}
+
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <OtpInput length={OTP_LENGTH} value={otp} onChange={handleOtpChange} error={!!error} />
+
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#f0f0f5] w-fit">
+                <span className="material-symbols-outlined text-[18px] text-[#7e7385]">schedule</span>
+                <span className="text-sm text-[#4d4354]">
+                  {cooldown > 0
+                    ? <>Code valide pendant <span className="font-bold text-[#8127cf]">{formatTime(cooldown)}</span></>
+                    : 'Le code a expiré'}
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading || otp.length !== OTP_LENGTH}
+                className="w-full py-5 rounded-full text-white text-sm font-semibold
+                           flex items-center justify-center gap-2
+                           transition-all duration-300 active:scale-[0.98]
+                           disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
+              >
+                {isLoading ? (
+                  <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                ) : (
+                  <>
+                    Vérifier mon code
+                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="text-base text-[#4d4354] text-center lg:text-left">
+              Vous n'avez pas reçu le code ?{' '}
+              <button
+                onClick={handleResend}
+                disabled={cooldown > 0}
+                className="text-[#8127cf] font-bold hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+              >
+                Renvoyer le code
+              </button>
+            </p>
+
+          </section>
+
+          <AuthVisual
+            topBadge={{ icon: 'shield', label: 'Sécurisé par IAAI' }}
+            bottomCard={{
+              icon: 'lock',
+              iconBg: 'bg-[#8127cf]',
+              title: 'Chiffrement de bout en bout',
+              subtitle: 'Vos données sont protégées',
             }}
-            placeholder="000000"
-            maxLength={6}
-            className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white
-                       text-[#0b1c30] text-center text-2xl tracking-[0.5em] font-mono
-                       focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10
-                       focus:outline-none transition-all"
           />
 
-          <button
-            type="submit"
-            disabled={isLoading || otp.length !== 6}
-            className="w-full py-4 rounded-full text-white text-sm font-semibold
-                       flex items-center justify-center gap-2
-                       transition-all duration-300 active:scale-[0.98]
-                       disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(135deg, #ec4899 0%, #a855f7 100%)' }}
-          >
-            {isLoading ? (
-              <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-            ) : (
-              'Vérifier mon compte'
-            )}
-          </button>
-        </form>
+        </div>
+      </main>
 
-        {/* Renvoyer le code */}
-        <p className="mt-6 text-sm text-[#7e7385] text-center">
-          Vous n'avez pas reçu le code ?{' '}
-          <button
-            onClick={handleResend}
-            className="text-violet-700 font-semibold hover:underline"
-          >
-            Renvoyer
-          </button>
-        </p>
-
-      </section>
     </div>
   )
 }

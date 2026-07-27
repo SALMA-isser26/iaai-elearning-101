@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import legacy from '@vitejs/plugin-legacy'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -7,7 +8,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    legacy({
+      targets: ['defaults', 'not IE 11', 'Edge >= 18'],
+      additionalLegacyPolyfills: ['regenerator-runtime/runtime'],
+    }),
+  ],
 
   resolve: {
     alias: {
@@ -16,8 +23,8 @@ export default defineConfig({
   },
 
   server: {
-    port: 5173,
+    port: Number(process.env.PORT) || 5173,
     host: true,
-    strictPort: true,
+    strictPort: false,
   },
 })

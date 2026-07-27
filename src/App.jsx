@@ -2,9 +2,13 @@ import { useEffect } from 'react'
 import AppRouter from '@/router/AppRouter'
 import { supabase } from '@/services/supabaseClient'
 import { useAuthStore } from '@/store/authStore'
+import { useTheme } from '@/hooks/useTheme'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 function App() {
   const { setUser, logout, setLoading } = useAuthStore()
+  // Initialise le thème (applique la classe dark sur <html>) dès le démarrage
+  useTheme()
 
   useEffect(() => {
     // Vérifier la session au démarrage
@@ -22,6 +26,9 @@ function App() {
       } else {
         setLoading(false)
       }
+    }).catch((error) => {
+      console.error('Error fetching session:', error)
+      setLoading(false)
     })
 
     // Écouter les changements de session (login, logout, refresh token)
@@ -44,7 +51,11 @@ function App() {
     return () => subscription.unsubscribe()
   }, [setUser, logout, setLoading])
 
-  return <AppRouter />
+  return (
+    <ErrorBoundary>
+      <AppRouter />
+    </ErrorBoundary>
+  )
 }
 
 export default App

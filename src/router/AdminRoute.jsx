@@ -1,6 +1,10 @@
 // src/router/AdminRoute.jsx
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import { ROLES } from '@/services/permissionsService'
+
+// Rôles autorisés à accéder à l'interface d'administration
+const ADMIN_ROLES = [ROLES.ADMIN, ROLES.SUPER_ADMIN]
 
 function AdminRoute() {
   const { isAuthenticated, isLoading, user } = useAuthStore()
@@ -18,7 +22,8 @@ function AdminRoute() {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (user?.role !== 'ADMIN') {
+  // Autoriser ADMIN et SUPER_ADMIN — les autres rôles (LEARNER, BLOCKED…) sont redirigés
+  if (!ADMIN_ROLES.includes(user?.role)) {
     return <Navigate to="/dashboard" replace />
   }
 

@@ -1,6 +1,7 @@
 // src/pages/Dashboard/DashboardPage.jsx
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { ROUTES } from '@/constants/routes'
 import { fetchDashboardData } from '@/services/dashboardService'
@@ -18,11 +19,12 @@ function Skeleton({ className = '' }) {
 // ─── Empty state (aucune activité) ────────────────────────────────────────────
 
 function EmptyActivity() {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
       <span className="material-symbols-outlined text-[48px] text-[#cfc2d6]">history</span>
-      <p className="text-sm font-medium text-[#7e7385]">Aucune activité pour l'instant</p>
-      <p className="text-xs text-[#7e7385]">Commencez une leçon pour voir votre historique ici</p>
+      <p className="text-sm font-medium text-[#7e7385]">{t('dashboard.empty_activity_title')}</p>
+      <p className="text-xs text-[#7e7385]">{t('dashboard.empty_activity_subtitle')}</p>
     </div>
   )
 }
@@ -32,7 +34,7 @@ function EmptyActivity() {
 function StatCard({ stat, loading }) {
   if (loading) {
     return (
-      <div className="bg-white/70 backdrop-blur-md border border-white/50 rounded-2xl p-6 border-l-4 border-l-purple-100">
+      <div className="bg-white border border-[#8127cf]/10 shadow-sm rounded-2xl p-6 border-l-4 border-l-purple-100">
         <div className="flex items-center gap-4">
           <Skeleton className="w-12 h-12 rounded-xl" />
           <div className="flex flex-col gap-2">
@@ -45,7 +47,7 @@ function StatCard({ stat, loading }) {
   }
 
   return (
-    <div className={`bg-white/70 backdrop-blur-md border border-white/50 rounded-2xl p-6 border-l-4 ${stat.border}`}>
+    <div className={`bg-white border border-[#8127cf]/10 shadow-sm rounded-2xl p-6 border-l-4 ${stat.border}`}>
       <div className="flex items-center gap-4">
         <div className={`w-12 h-12 rounded-xl ${stat.bg} flex items-center justify-center`}>
           <span className={`material-symbols-outlined ${stat.text}`}>{stat.icon}</span>
@@ -62,6 +64,7 @@ function StatCard({ stat, loading }) {
 // ─── Composant : roadmap ──────────────────────────────────────────────────────
 
 function RoadmapItem({ item, isLast }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-start gap-4">
       <div className="flex flex-col items-center">
@@ -99,7 +102,7 @@ function RoadmapItem({ item, isLast }) {
         {item.status === 'done' && (
           <p className="text-xs text-[#7e7385] flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px] text-green-500" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-            Terminé
+            {t('dashboard.status.done')}
           </p>
         )}
         {item.status === 'active' && (
@@ -110,11 +113,11 @@ function RoadmapItem({ item, isLast }) {
                 style={{ width: `${item.progress}%` }}
               />
             </div>
-            <span className="text-[10px] text-[#7e7385]">En cours · {item.progress}%</span>
+            <span className="text-[10px] text-[#7e7385]">{t('dashboard.in_progress_percent', { percent: item.progress })}</span>
           </div>
         )}
         {item.status === 'locked' && (
-          <p className="text-xs text-[#7e7385]">À venir</p>
+          <p className="text-xs text-[#7e7385]">{t('dashboard.upcoming')}</p>
         )}
       </div>
     </div>
@@ -124,6 +127,7 @@ function RoadmapItem({ item, isLast }) {
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
 
   const [loading, setLoading]               = useState(true)
@@ -161,7 +165,7 @@ export default function DashboardPage() {
   const activeModule = roadmap.find((m) => m.status === 'active') ?? null
 
   return (
-    <div className="min-h-screen bg-[#f8f5ff] pb-12">
+    <div className="min-h-screen pb-12 theme-transition" style={{ background: 'var(--color-bg)' }}>
 
       {/* ── Row 1 : Welcome Banner + Objectif ───────────────────────────────── */}
       <div className="grid grid-cols-12 gap-6 mb-6">
@@ -173,24 +177,20 @@ export default function DashboardPage() {
         >
           <div className="relative z-10">
             <h2 className="text-2xl font-bold font-display mb-2">
-              Bonjour {firstName} 
+              {t('dashboard.greeting', { name: firstName })}
             </h2>
             <p className="text-base opacity-90 mb-6">
-              {meta.overallPercent > 0
-                ? 'Vous faites d\'excellents progrès. Continuez ainsi !'
-                : 'Bienvenue sur IAAI eLearning ! Commencez votre premier module.'}
+              {meta.overallPercent > 0 ? t('dashboard.subtitle') : t('dashboard.welcome_new')}
             </p>
 
             {/* Barre de progression globale */}
             <div className="mb-6 max-w-sm">
               <div className="flex justify-between text-xs mb-2">
-                <span>Progression du cours</span>
+                <span>{t('dashboard.progress_label')}</span>
                 {loading ? (
                   <Skeleton className="h-3 w-24 bg-white/30" />
                 ) : (
-                  <span>
-                    {meta.overallPercent}% ({meta.overallCompleted}/{meta.overallTotal} leçons)
-                  </span>
+                  <span>{t('dashboard.progress_value', { percent: meta.overallPercent, done: meta.overallCompleted, total: meta.overallTotal })}</span>
                 )}
               </div>
               <div className="h-2 w-full bg-white/20 rounded-full">
@@ -210,7 +210,7 @@ export default function DashboardPage() {
               className="inline-flex items-center gap-2 bg-white text-[#8127cf]
                          px-6 py-3 rounded-full font-bold text-sm hover:bg-purple-50 transition-colors"
             >
-              {meta.overallPercent > 0 ? 'Continuer l\'apprentissage' : 'Commencer'}
+              {meta.overallPercent > 0 ? t('dashboard.continue_learning') : t('dashboard.start')}
               <span className="material-symbols-outlined text-[20px]">play_arrow</span>
             </Link>
           </div>
@@ -222,12 +222,12 @@ export default function DashboardPage() {
 
         {/* Objectif hebdomadaire */}
         <div
-          className="col-span-12 lg:col-span-5 bg-white/70 backdrop-blur-md
-                     border border-white/50 rounded-2xl p-8
-                     flex flex-col items-center justify-center text-center"
+          className="col-span-12 lg:col-span-5 rounded-2xl p-8
+                     flex flex-col items-center justify-center text-center
+                     glass-card theme-transition"
         >
-          <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-4">
-            Objectif Hebdomadaire
+          <h3 className="text-xl font-bold font-display mb-4" style={{ color: 'var(--color-text)' }}>
+            {t('dashboard.weekly_goal_title')}
           </h3>
 
           {/* Cercle de progression */}
@@ -238,18 +238,18 @@ export default function DashboardPage() {
               <svg className="w-full h-full -rotate-90" viewBox="0 0 128 128">
                 <circle
                   cx="64" cy="64" r="58"
-                  fill="transparent" stroke="#d3e4fe" strokeWidth="8"
+                  fill="transparent" stroke="var(--color-border)" strokeWidth="8"
                 />
                 <circle
                   cx="64" cy="64" r="58"
-                  fill="transparent" stroke="#8127cf" strokeWidth="8"
+                  fill="transparent" stroke="var(--color-primary)" strokeWidth="8"
                   strokeDasharray="364.4"
                   strokeDashoffset={364.4 - (364.4 * meta.activeModuleProgress) / 100}
                   className="transition-all duration-700"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold text-[#8127cf]">
+                <span className="text-2xl font-bold" style={{ color: 'var(--color-primary)' }}>
                   {meta.activeModuleProgress}%
                 </span>
               </div>
@@ -263,15 +263,13 @@ export default function DashboardPage() {
               </p>
               <p className="text-xs text-[#7e7385]">
                 {activeModule.totalLessons - activeModule.completedLessons > 0
-                  ? `Plus que ${activeModule.totalLessons - (activeModule.completedLessons ?? 0)} leçon(s) restante(s)`
-                  : 'Prêt pour le quiz !'}
+                  ? t('dashboard.lessons_remaining', { count: activeModule.totalLessons - (activeModule.completedLessons ?? 0) })
+                  : t('dashboard.ready_for_quiz')}
               </p>
             </>
           ) : (
             <p className="text-sm text-[#7e7385]">
-              {meta.overallPercent === 100
-                ? 'Tous les modules sont terminés !'
-                : 'Commencez un module pour voir votre objectif'}
+              {meta.overallPercent === 100 ? t('dashboard.all_modules_done') : t('dashboard.start_module_prompt')}
             </p>
           )}
         </div>
@@ -293,11 +291,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
         {/* Carte "Continuer la leçon" */}
-        <div className="bg-white/70 backdrop-blur-md border border-white/50 rounded-2xl overflow-hidden flex flex-col">
+        <div className="bg-white border border-[#8127cf]/10 shadow-sm rounded-2xl overflow-hidden flex flex-col">
           <div className="h-48 relative bg-gradient-to-br from-purple-400 to-cyan-400">
             <div className="absolute top-4 left-4 bg-[#8127cf] text-white text-[10px]
                             font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-              {meta.overallPercent === 0 ? 'Nouveau' : 'En cours'}
+              {meta.overallPercent === 0 ? t('dashboard.status_new') : t('dashboard.status_in_progress')}
             </div>
             <div className="absolute inset-0 flex items-center justify-center opacity-20">
               <span className="material-symbols-outlined text-[120px] text-white">
@@ -315,19 +313,19 @@ export default function DashboardPage() {
             ) : (
               <>
                 <h4 className="text-lg font-bold text-[#0b1c30] mb-1">
-                  {activeModule?.title ?? 'Module 1 — Qu\'est-ce que l\'IA ?'}
+                  {activeModule?.title ?? t('dashboard.default_module_title')}
                 </h4>
                 <p className="text-xs text-[#7e7385] mb-6">
                   {activeModule
-                    ? `${activeModule.completedLessons ?? 0}/${activeModule.totalLessons ?? 0} leçons complétées`
-                    : 'Commencez votre parcours dès maintenant !'}
+                    ? t('dashboard.lessons_completed_count', { completed: activeModule.completedLessons ?? 0, total: activeModule.totalLessons ?? 0 })
+                    : t('dashboard.start_journey_prompt')}
                 </p>
               </>
             )}
 
             <div className="mt-auto">
               <div className="flex justify-between text-xs mb-2">
-                <span>Progression du module</span>
+                <span>{t('dashboard.module_progress_label')}</span>
                 <span>{loading ? '...' : `${meta.activeModuleProgress}%`}</span>
               </div>
               <div className="h-1.5 w-full bg-[#e5eeff] rounded-full mb-6">
@@ -343,16 +341,16 @@ export default function DashboardPage() {
                            flex items-center justify-center gap-2 text-sm"
               >
                 <span className="material-symbols-outlined">play_arrow</span>
-                {meta.overallPercent > 0 ? 'Reprendre la leçon' : 'Commencer maintenant'}
+                {meta.overallPercent > 0 ? t('dashboard.continue_lesson') : t('dashboard.start_now')}
               </Link>
             </div>
           </div>
         </div>
 
         {/* Feuille de route */}
-        <div className="bg-white/70 backdrop-blur-md border border-white/50 rounded-2xl p-6">
+        <div className="bg-white border border-[#8127cf]/10 shadow-sm rounded-2xl p-6">
           <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-6">
-            Feuille de route
+            {t('dashboard.roadmap_title')}
           </h3>
 
           {loading ? (
@@ -376,7 +374,7 @@ export default function DashboardPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
               <span className="material-symbols-outlined text-[48px] text-[#cfc2d6]">map</span>
-              <p className="text-sm text-[#7e7385]">Roadmap non disponible</p>
+              <p className="text-sm text-[#7e7385]">{t('dashboard.roadmap_unavailable')}</p>
             </div>
           )}
         </div>
@@ -387,8 +385,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-12 gap-6 mb-6">
 
         {/* Badges */}
-        <div className="col-span-12 lg:col-span-4 bg-white border border-purple-100 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-6"> Mes badges</h3>
+        <div className="col-span-12 lg:col-span-4 bg-white border border-[#8127cf]/10 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-6">🏆 {t('dashboard.badges_title')}</h3>
           <div className="grid grid-cols-3 gap-4">
             {/* Badge "AI Explorer" débloqué si au moins 1 leçon complétée */}
             <div
@@ -400,12 +398,12 @@ export default function DashboardPage() {
                               flex items-center justify-center text-white shadow-md mb-2">
                 <span className="material-symbols-outlined text-[32px]">rocket_launch</span>
               </div>
-              <p className="text-[10px] font-bold text-[#0b1c30]">AI Explorer</p>
+              <p className="text-[10px] font-bold text-[#0b1c30]">{t('dashboard.badge_ai_explorer')}</p>
             </div>
             {/* Badge "Code Starter" débloqué si module 3 commencé */}
             {[
-              { icon: 'code',         label: 'Code Starter',  unlocked: roadmap.some((m) => m.order_index >= 3 && m.status !== 'locked') },
-              { icon: 'emoji_events', label: 'Quiz Master',   unlocked: (stats.find((s) => s.label === 'Quiz réussis')?.value ?? '0').replace(/\D/g, '') > 0 },
+              { icon: 'code',         label: t('dashboard.badge_code_starter'),  unlocked: roadmap.some((m) => m.order_index >= 3 && m.status !== 'locked') },
+              { icon: 'emoji_events', label: t('dashboard.badge_quiz_master'),   unlocked: (stats.find((s) => s.label === 'Quiz réussis')?.value ?? '0').replace(/\D/g, '') > 0 },
             ].map((badge, i) => (
               <div
                 key={i}
@@ -424,8 +422,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Activité récente */}
-        <div className="col-span-12 lg:col-span-8 bg-white border border-purple-100 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-4">📋 Activité récente</h3>
+        <div className="col-span-12 lg:col-span-8 bg-white border border-[#8127cf]/10 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-4">📋 {t('dashboard.activity_title')}</h3>
 
           {loading ? (
             <div className="flex flex-col gap-3">
@@ -474,14 +472,14 @@ export default function DashboardPage() {
       {(loading || recommendations.length > 0) && (
         <div>
           <h3 className="text-xl font-bold font-display text-[#0b1c30] mb-6">
-            Recommandé pour vous
+            {t('dashboard.recommendations_title')}
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {loading
               ? Array.from({ length: 2 }).map((_, i) => (
                   <div
                     key={i}
-                    className="bg-white border border-purple-100 p-6 rounded-2xl flex items-center gap-6"
+                    className="bg-white border border-[#8127cf]/10 p-6 rounded-2xl flex items-center gap-6"
                   >
                     <Skeleton className="w-20 h-20 rounded-2xl flex-shrink-0" />
                     <div className="flex flex-col gap-3 flex-1">
@@ -494,7 +492,7 @@ export default function DashboardPage() {
               : recommendations.map((item, i) => (
                   <div
                     key={i}
-                    className="bg-white border border-purple-100 p-6 rounded-2xl
+                    className="bg-white border border-[#8127cf]/10 p-6 rounded-2xl
                                flex items-center gap-6 shadow-sm hover:shadow-md transition-all group"
                   >
                     <div

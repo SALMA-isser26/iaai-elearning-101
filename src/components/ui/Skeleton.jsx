@@ -8,7 +8,6 @@
  *   <SkeletonCourseCard />
  */
 
-import React from 'react';
 
 const Skeleton = ({ className = '', circle = false }) => (
   <div

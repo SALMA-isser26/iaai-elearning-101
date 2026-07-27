@@ -143,12 +143,13 @@ export default function SearchPage() {
 
   // Lancer la recherche si ?q= est présent au chargement
   useEffect(() => {
-    if (query) {
+    if (!query) return
+    const t = setTimeout(() => {
       setInput(query)
       doSearch(query)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    }, 0)
+    return () => clearTimeout(t)
+  }, [query])
 
   async function doSearch(term) {
     const q = term.trim()

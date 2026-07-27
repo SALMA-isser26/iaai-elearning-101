@@ -4,13 +4,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { askARIA } from '@/services/ariaService'
 
-function generateSessionId() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
-  })
-}
-
 const SUGGESTIONS = [
   { label: "🤖 C'est quoi l'IA ?",       text: "Qu'est-ce que l'intelligence artificielle ?" },
   { label: '📜 Obtenir un certificat ?',  text: 'Comment obtenir un certificat ?' },
@@ -59,7 +52,7 @@ function Message({ msg }) {
   )
 }
 
-export default function ARIAFloatingAssistant({ lessonId = null, moduleId = null, lessonTitle = null, moduleTitle = null }) {
+export default function ARIAFloatingAssistant({ lessonId = null, moduleId = null, lessonTitle = null }) {
   const [open, setOpen]         = useState(false)
   const [messages, setMessages] = useState([{
     id: 1, from: 'aria',

@@ -1,86 +1,39 @@
 // src/services/certificateService.js
 import { supabase } from './supabaseClient'
 
-// ─── Vérifier si l'utilisateur mérite un certificat ─────────────────────────
+// ─── Vérifier si l'utilisateur mérite le certificat de fin de parcours ──────
+// Un seul certificat par utilisateur, délivré quand TOUS les modules publiés
+// sont complétés (leçons + quiz réussi). La logique vit côté base
+// (check_certificate_eligibility, en lecture seule) pour rester alignée avec
+// issue_certificate(), qui applique exactement la même règle au moment de
+// l'émission.
 
-export async function checkCertificateEligibility(userId, moduleId) {
-  // 1. Toutes les leçons du module sont complétées ?
-  const { count: totalLessons } = await supabase
-    .from('lessons')
-    .select('*', { count: 'exact', head: true })
-    .eq('module_id', moduleId)
-
-  const { count: completedLessons } = await supabase
-    .from('user_progress')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('module_id', moduleId)
-    .eq('completed', true)
-
-  const allLessonsComplete = totalLessons > 0 && completedLessons === totalLessons
-
-  // 2. Quiz réussi avec score >= 80 ?
-  const { data: attempt } = await supabase
-    .from('quiz_attempts')
-    .select('score, passed')
-    .eq('user_id', userId)
-    .eq('module_id', moduleId)
-    .eq('passed', true)
-    .order('score', { ascending: false })
-    .limit(1)
+export async function checkCertificateEligibility(userId) {
+  const { data, error } = await supabase
+    .rpc('check_certificate_eligibility')
     .single()
 
-  return {
-    eligible: allLessonsComplete && !!attempt,
-    allLessonsComplete,
-    quizPassed: !!attempt,
-    bestScore: attempt?.score || 0,
+  if (error) {
+    console.error('Erreur vérification éligibilité certificat:', error)
+    return { eligible: false, bestScore: 0 }
   }
+
+  return { eligible: data.eligible, bestScore: data.avg_score }
 }
 
-// ─── Générer un certificat ───────────────────────────────────────────────────
+// ─── Générer (émettre) le certificat de fin de parcours ─────────────────────
+// Passe par la fonction RPC `issue_certificate` (SECURITY DEFINER) : c'est
+// elle qui vérifie l'éligibilité et insère la ligne — le client n'a plus le
+// droit d'insérer directement dans `certificates` depuis la migration du 19/07.
+// Idempotente : si un certificat existe déjà pour l'utilisateur, elle le
+// retourne tel quel plutôt que d'en créer un second.
 
-export async function generateCertificate(userId, moduleId) {
-  // Vérifier l'éligibilité
-  const eligibility = await checkCertificateEligibility(userId, moduleId)
-  if (!eligibility.eligible) {
-    throw new Error('Conditions non remplies pour obtenir le certificat')
-  }
-
-  // Vérifier si déjà généré
-  const existing = await getCertificate(userId, moduleId)
-  if (existing) return existing
-
-  // Générer un numéro unique
-  const certificateNumber = `IAAI-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
-
+export async function generateCertificate(userId) {
   const { data, error } = await supabase
-    .from('certificates')
-    .insert({
-      user_id: userId,
-      module_id: moduleId,
-      certificate_number: certificateNumber,
-      issued_at: new Date().toISOString(),
-      score: eligibility.bestScore,
-    })
-    .select('*, modules(title)')
+    .rpc('issue_certificate')
     .single()
 
   if (error) throw error
-  return data
-}
-
-// ─── Récupérer un certificat ─────────────────────────────────────────────────
-
-export async function getCertificate(userId, moduleId) {
-  const { data, error } = await supabase
-    .from('certificates')
-    .select('*, modules(title)')
-    .eq('user_id', userId)
-    .eq('module_id', moduleId)
-    .single()
-
-  if (error) return null
   return data
 }
 
@@ -89,10 +42,23 @@ export async function getCertificate(userId, moduleId) {
 export async function getUserCertificates(userId) {
   const { data, error } = await supabase
     .from('certificates')
-    .select('*, modules(title, order_index)')
+    .select('*, modules(title, order_index, level)')
     .eq('user_id', userId)
     .order('issued_at', { ascending: false })
 
   if (error) throw error
   return data || []
+}
+
+// ─── Vérification publique (page /verify/:certificateNumber) ────────────────
+// Ne nécessite aucune authentification : passe par la fonction RPC
+// `verify_certificate`, qui ne renvoie que les champs publics du certificat.
+
+export async function verifyCertificatePublic(certificateNumber) {
+  const { data, error } = await supabase
+    .rpc('verify_certificate', { p_certificate_number: certificateNumber })
+    .single()
+
+  if (error) return null
+  return data
 }

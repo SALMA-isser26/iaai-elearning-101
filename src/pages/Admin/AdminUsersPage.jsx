@@ -4,6 +4,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/services/supabaseClient'
+import { useAuthStore } from '@/store/authStore'
+import { ROLES, ROLE_LABELS, ROLE_COLORS, getAssignableRoles } from '@/services/permissionsService'
+import { useToast } from '@/components/ui/Toast'
+import { inviteUser, deleteUsers } from '@/services/adminUserActionsService'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const AVATAR_GRADS = [
@@ -80,6 +84,8 @@ function TableRowSkeleton() {
 const PAGE_SIZE = 10
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuthStore()
+  const { toast } = useToast()
   const [users,        setUsers]        = useState([])
   const [totalCount,   setTotalCount]   = useState(0)
   const [loading,      setLoading]      = useState(true)
@@ -88,10 +94,17 @@ export default function AdminUsersPage() {
   const [search,       setSearch]       = useState('')
   const [filterPlan,   setFilterPlan]   = useState('Tous')
   const [filterStatus, setFilterStatus] = useState('Tous')
+  const [filterRole,   setFilterRole]   = useState('Tous')
   const [page,         setPage]         = useState(1)
 
   const [selected,     setSelected]     = useState([])
   const [viewUser,     setViewUser]     = useState(null)
+  const [inviteOpen,   setInviteOpen]   = useState(false)
+  const [inviteEmail,  setInviteEmail]  = useState('')
+  const [inviting,     setInviting]     = useState(false)
+  const [actionLoading, setActionLoading] = useState(null) // id de l'user en cours d'action
+
+  const assignableRoles = getAssignableRoles(currentUser?.role)
 
   // ── Charger les utilisateurs ──────────────────────────────────────────────
   const fetchUsers = useCallback(async () => {
@@ -107,6 +120,9 @@ export default function AdminUsersPage() {
 
       if (filterPlan !== 'Tous') {
         query = query.eq('plan', filterPlan === 'Illimité' ? 'premium' : 'free')
+      }
+      if (filterRole !== 'Tous') {
+        query = query.eq('role', filterRole)
       }
       if (search) {
         query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`)
@@ -168,6 +184,7 @@ export default function AdminUsersPage() {
         const progress   = Math.round((completed / totalLessons) * 100)
         const quizzes    = quizzesByUser[p.id] || 0
         const status     = getStatus(lastSeen)
+        const role       = p.role || ROLES.LEARNER
         return {
           ...p,
           initials:  getInitials(p.full_name, p.email),
@@ -175,6 +192,9 @@ export default function AdminUsersPage() {
           progress,
           quizzes,
           status,
+          role,
+          roleLabel: ROLE_LABELS[role] || role,
+          roleColor: ROLE_COLORS[role] || ROLE_COLORS[ROLES.LEARNER],
           planLabel: p.plan === 'premium' ? 'Illimité' : 'Gratuit',
           joinedFmt: formatDate(p.created_at),
           lastSeen:  timeAgo(lastSeen),
@@ -194,12 +214,74 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, filterPlan, filterStatus, search])
+  }, [page, filterPlan, filterStatus, filterRole, search])
 
   useEffect(() => {
     const timer = setTimeout(fetchUsers, search ? 400 : 0) // debounce search
     return () => clearTimeout(timer)
   }, [fetchUsers])
+
+  // ── Actions admin : changer le rôle / supprimer / inviter ─────────────────
+  const handleUpdateRole = async (userId, newRole) => {
+    setActionLoading(userId)
+    const { error } = await supabase.from('profiles').update({ role: newRole }).eq('id', userId)
+    setActionLoading(null)
+    if (error) {
+      console.error('[AdminUsersPage] updateRole', error)
+      toast.error("Échec de la mise à jour du rôle.")
+      return
+    }
+    toast.success('Rôle mis à jour.')
+    fetchUsers()
+    setViewUser(null)
+  }
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Supprimer définitivement cet utilisateur ?')) return
+    setActionLoading(userId)
+    try {
+      await deleteUsers([userId])
+      toast.success('Utilisateur supprimé.')
+      fetchUsers()
+    } catch (err) {
+      console.error('[AdminUsersPage] deleteUser', err)
+      toast.error(err.message)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selected.length === 0) return
+    if (!window.confirm(`Supprimer ${selected.length} utilisateur(s) ?`)) return
+    try {
+      await deleteUsers(selected)
+      toast.success(`${selected.length} utilisateur(s) supprimé(s).`)
+      setSelected([])
+      fetchUsers()
+    } catch (err) {
+      console.error('[AdminUsersPage] bulkDelete', err)
+      toast.error(err.message)
+    }
+  }
+
+  const handleInviteSubmit = async (e) => {
+    e.preventDefault()
+    if (!inviteEmail.trim()) return
+    setInviting(true)
+    try {
+      await inviteUser(inviteEmail.trim())
+      toast.success(`Invitation envoyée à ${inviteEmail.trim()}.`)
+      setInviteOpen(false)
+      setInviteEmail('')
+      fetchUsers()
+    } catch (err) {
+      console.error('[AdminUsersPage] inviteUser', err)
+      toast.error(err.message)
+    } finally {
+      setInviting(false)
+    }
+  }
 
   // ── Sélection ─────────────────────────────────────────────────────────────
   const toggleSelect = id => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
@@ -227,7 +309,10 @@ export default function AdminUsersPage() {
             <span className="material-symbols-outlined text-[16px]">refresh</span>
             Actualiser
           </button>
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors">
+          <button
+            onClick={() => setInviteOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors"
+          >
             <span className="material-symbols-outlined text-[18px]">person_add</span>
             Inviter
           </button>
@@ -273,8 +358,21 @@ export default function AdminUsersPage() {
           <option>Inactif</option>
           <option>En attente</option>
         </select>
+        <select
+          value={filterRole}
+          onChange={e => { setFilterRole(e.target.value); setPage(1) }}
+          className="px-4 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400"
+        >
+          <option value="Tous">Tous les rôles</option>
+          {Object.entries(ROLE_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{label}</option>
+          ))}
+        </select>
         {selected.length > 0 && (
-          <button className="px-4 py-2 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-1.5">
+          <button
+            onClick={handleBulkDelete}
+            className="px-4 py-2 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors flex items-center gap-1.5"
+          >
             <span className="material-symbols-outlined text-[16px]">delete</span>
             Supprimer ({selected.length})
           </button>
@@ -291,6 +389,7 @@ export default function AdminUsersPage() {
                   <input type="checkbox" checked={allSelected} onChange={toggleAll} className="rounded border-slate-300 text-violet-600 focus:ring-violet-400" />
                 </th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Utilisateur</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">Rôle</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Plan</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Progression</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Statut</th>
@@ -328,6 +427,11 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${u.roleColor}`}>
+                          {u.roleLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
                         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${u.planLabel === 'Illimité' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-600'}`}>
                           {u.planLabel}
                         </span>
@@ -350,10 +454,17 @@ export default function AdminUsersPage() {
                           <button onClick={() => setViewUser(u)} className="w-7 h-7 rounded-lg hover:bg-violet-100 flex items-center justify-center transition-colors">
                             <span className="material-symbols-outlined text-[16px] text-violet-600">visibility</span>
                           </button>
-                          <button className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors">
+                          <button
+                            onClick={() => setViewUser(u)}
+                            className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center transition-colors"
+                          >
                             <span className="material-symbols-outlined text-[16px] text-slate-400">edit</span>
                           </button>
-                          <button className="w-7 h-7 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors">
+                          <button
+                            onClick={() => handleDeleteUser(u.id)}
+                            disabled={actionLoading === u.id}
+                            className="w-7 h-7 rounded-lg hover:bg-red-100 flex items-center justify-center transition-colors disabled:opacity-40"
+                          >
                             <span className="material-symbols-outlined text-[16px] text-red-400">delete</span>
                           </button>
                         </div>
@@ -452,11 +563,67 @@ export default function AdminUsersPage() {
               <button onClick={() => setViewUser(null)} className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors">
                 Fermer
               </button>
-              <button className="flex-1 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors">
-                Modifier
-              </button>
+              <select
+                defaultValue={viewUser.role || ROLES.LEARNER}
+                disabled={actionLoading === viewUser.id}
+                onChange={e => handleUpdateRole(viewUser.id, e.target.value)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-center focus:outline-none focus:border-violet-400"
+              >
+                {assignableRoles.map(role => (
+                  <option key={role} value={role}>{ROLE_LABELS[role]}</option>
+                ))}
+              </select>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── Modale d'invitation ────────────────────────────────────────────── */}
+      {inviteOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <form
+            onSubmit={handleInviteSubmit}
+            className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800">Inviter un membre</h3>
+              <button
+                type="button"
+                onClick={() => setInviteOpen(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+            <p className="text-sm text-slate-500">
+              Un email d'invitation avec un lien d'inscription sera envoyé à cette adresse.
+            </p>
+            <input
+              type="email"
+              required
+              autoFocus
+              placeholder="email@exemple.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-violet-400"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setInviteOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={inviting}
+                className="flex-1 py-2.5 rounded-xl bg-violet-700 text-white text-sm font-semibold hover:bg-violet-800 transition-colors disabled:opacity-50"
+              >
+                {inviting ? 'Envoi…' : "Envoyer l'invitation"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

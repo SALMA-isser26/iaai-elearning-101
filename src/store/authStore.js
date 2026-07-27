@@ -1,7 +1,33 @@
 // src/store/authStore.js
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { supabase } from '@/services/supabaseClient'
+
+// Safe localStorage wrapper that handles access errors gracefully
+const safeStorage = {
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key)
+    } catch {
+      return null
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      localStorage.setItem(key, value)
+    } catch (e) {
+      // Silently fail if localStorage is not available (security restrictions, private browsing, etc.)
+      console.debug('localStorage unavailable:', e.message)
+    }
+  },
+  removeItem: (key) => {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // Silently fail
+    }
+  },
+}
 
 export const useAuthStore = create(
   persist(
@@ -93,6 +119,7 @@ export const useAuthStore = create(
     }),
     {
       name: 'iaai-auth',
+      storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({
         // ─── CORRECTION : accessToken retiré de la persistance
         // Seuls user et isAuthenticated sont persistés.

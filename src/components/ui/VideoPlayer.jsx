@@ -10,7 +10,7 @@
  *   />
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const formatTime = (seconds) => {
   const m = Math.floor(seconds / 60);
@@ -76,6 +76,28 @@ const VideoPlayer = ({
   };
 
   useEffect(() => () => clearTimeout(hideTimeout.current), []);
+
+  if (!src) {
+    return (
+      <div
+        className={[
+          'relative w-full bg-[#0d0d0d] rounded-xl overflow-hidden',
+          'aspect-video flex items-center justify-center',
+          className,
+        ].join(' ')}
+        aria-label={`Vidéo indisponible : ${title ?? ''}`}
+      >
+        <div className="text-center space-y-3 px-6">
+          <span className="material-symbols-outlined text-[64px] text-white/20">
+            videocam_off
+          </span>
+          <p className="text-white/50 text-sm font-medium">
+            Vidéo bientôt disponible pour cette leçon
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

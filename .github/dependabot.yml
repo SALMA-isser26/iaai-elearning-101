@@ -1,0 +1,42 @@
+# .github/dependabot.yml
+# Scan automatique des vulnérabilités de dépendances — IAAI eLearning 101
+#
+# Dependabot ouvre une PR automatiquement dès qu'une dépendance a une faille
+# de sécurité connue (CVE), avec le changelog et le niveau de gravité.
+# Gratuit sur GitHub, aucune configuration serveur nécessaire.
+
+version: 2
+updates:
+  # ── Dépendances npm (package.json) ──────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    # Priorité aux mises à jour de sécurité ; les mises à jour "version mineure"
+    # non liées à la sécurité sont groupées pour ne pas spammer de PR isolées.
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # ── GitHub Actions (versions des actions utilisées dans les workflows) ─────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"

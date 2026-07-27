@@ -41,3 +41,5 @@ __pycache__/
 Manim/**/__pycache__/
 Manim/**/media/
 Manim/**/audio/
+.vercel
+.env*

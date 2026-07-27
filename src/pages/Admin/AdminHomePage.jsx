@@ -6,20 +6,89 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '@/services/supabaseClient'
 import { ROUTES } from '@/constants/routes'
+import { useToast } from '@/components/ui/Toast'
+import { Users, GraduationCap, CircleCheckBig, Crown, ArrowUpRight } from 'lucide-react'
 
 // ─── Liens rapides (statiques — pas besoin de Supabase) ───────────────────────
 const quickLinks = [
   { label: 'Gérer les utilisateurs', to: ROUTES.ADMIN_USERS,   icon: 'manage_accounts', color: 'text-violet-600', bg: 'bg-violet-50' },
   { label: 'Gérer les cours',        to: ROUTES.ADMIN_COURSES, icon: 'menu_book',        color: 'text-cyan-600',   bg: 'bg-cyan-50'   },
-  { label: 'Voir les analytics',     to: '#',                  icon: 'bar_chart',        color: 'text-pink-600',   bg: 'bg-pink-50'   },
-  { label: 'Paramètres système',     to: '#',                  icon: 'settings',         color: 'text-slate-600',  bg: 'bg-slate-50'  },
+  { label: 'Voir les analytics',     to: ROUTES.ADMIN_ANALYTICS, icon: 'bar_chart',        color: 'text-pink-600',   bg: 'bg-pink-50'   },
+  { label: 'Paramètres système',     to: ROUTES.ADMIN_SETTINGS,       icon: 'settings',         color: 'text-slate-600',  bg: 'bg-slate-50'  },
 ]
 
-// ─── Alertes système (statiques — informations de config plateforme) ──────────
-const alerts = [
-  { icon: 'check_circle', color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', message: 'Sauvegarde Supabase automatique effectuée avec succès aujourd\'hui' },
-  { icon: 'info',         color: 'text-blue-600',  bg: 'bg-blue-50',  border: 'border-blue-200',  message: 'Edge Functions ARIA (Gemini + pgvector) opérationnelles' },
-]
+// ─── Fonction pour générer des alertes dynamiques basées sur l'état réel ──────────
+function generateDynamicAlerts(kpis, recentUsers) {
+  const alerts = []
+  
+  // Alertes basées sur les KPIs
+  if (kpis) {
+    const totalUsers = kpis.find(k => k.label === 'Utilisateurs inscrits')?.value || 0
+    const totalModules = kpis.find(k => k.label === 'Modules publiés')?.value || 0
+    
+    // Alerte si peu d'utilisateurs
+    if (totalUsers < 10) {
+      alerts.push({
+        icon: 'warning',
+        color: 'text-yellow-600',
+        bg: 'bg-yellow-50',
+        border: 'border-yellow-200',
+        message: `${totalUsers} utilisateur(s) inscrit(s) - considérez des actions marketing`
+      })
+    }
+    
+    // Alerte si peu de modules publiés
+    if (totalModules < 3) {
+      alerts.push({
+        icon: 'warning',
+        color: 'text-yellow-600',
+        bg: 'bg-yellow-50',
+        border: 'border-yellow-200',
+        message: `${totalModules} module(s) publié(s) - enrichissez le contenu pédagogique`
+      })
+    }
+    
+    // Alerte positive si bonne activité
+    if (totalUsers >= 50) {
+      alerts.push({
+        icon: 'trending_up',
+        color: 'text-green-600',
+        bg: 'bg-green-50',
+        border: 'border-green-200',
+        message: `Bonne activité : ${totalUsers} utilisateurs inscrits`
+      })
+    }
+  }
+  
+  // Alertes basées sur les utilisateurs récents
+  if (recentUsers && recentUsers.length > 0) {
+    const today = new Date().toDateString()
+    const newUsersToday = recentUsers.filter(u => new Date(u.created_at).toDateString() === today).length
+    
+    if (newUsersToday > 0) {
+      alerts.push({
+        icon: 'person_add',
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+        border: 'border-blue-200',
+        message: `${newUsersToday} nouvel(s) utilisateur(s) aujourd'hui`
+      })
+    }
+  }
+  
+  // Alerte par défaut si aucune alerte
+  if (alerts.length === 0) {
+    alerts.push({
+      icon: 'check_circle',
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      border: 'border-green-200',
+      message: 'Système opérationnel - tout va bien'
+    })
+  }
+  
+  return alerts
+}
 
 // ─── Gradients avatar par initiales ──────────────────────────────────────────
 const AVATAR_GRADS = [
@@ -50,11 +119,11 @@ function timeAgo(dateStr) {
 // ─── Skeleton KPI ─────────────────────────────────────────────────────────────
 function KpiSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 animate-pulse">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 rounded-xl bg-slate-200" />
+    <div className="bg-white rounded-2xl border border-slate-100 p-6 animate-pulse">
+      <div className="flex items-start justify-between mb-5">
+        <div className="w-12 h-12 rounded-2xl bg-slate-200" />
       </div>
-      <div className="h-7 w-20 bg-slate-200 rounded mb-2" />
+      <div className="h-8 w-20 bg-slate-200 rounded mb-2" />
       <div className="h-4 w-32 bg-slate-100 rounded" />
     </div>
   )
@@ -75,16 +144,19 @@ function UserRowSkeleton() {
 }
 
 export default function AdminHomePage() {
+  const { toast } = useToast()
   const [kpis,        setKpis]        = useState(null)   // null = chargement
   const [recentUsers, setRecentUsers] = useState(null)   // null = chargement
   const [error,       setError]       = useState(null)
+  const [refreshing,  setRefreshing]  = useState(false)
 
   useEffect(() => {
-    fetchDashboardData()
+    fetchDashboardData({ silent: true })
   }, [])
 
-  async function fetchDashboardData() {
+  async function fetchDashboardData({ silent = false } = {}) {
     setError(null)
+    setRefreshing(true)
     try {
       // ── 4 requêtes en parallèle — count uniquement, très rapide ─────────────
       const [
@@ -102,10 +174,10 @@ export default function AdminHomePage() {
       if (e1 || e2 || e3 || e4) throw e1 || e2 || e3 || e4
 
       setKpis([
-        { icon: 'group',             label: 'Utilisateurs inscrits', value: totalUsers   ?? 0, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
-        { icon: 'school',            label: 'Modules publiés',       value: totalModules ?? 0, color: 'text-cyan-600',   bg: 'bg-cyan-50',   border: 'border-cyan-200'   },
-        { icon: 'task_alt',          label: 'Quiz complétés',        value: totalQuizzes ?? 0, color: 'text-pink-600',   bg: 'bg-pink-50',   border: 'border-pink-200'   },
-        { icon: 'workspace_premium', label: 'Abonnés Illimité',      value: totalPremium ?? 0, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
+        { icon: Users,           label: 'Utilisateurs inscrits', value: totalUsers   ?? 0, gradient: 'from-violet-500 to-purple-600' },
+        { icon: GraduationCap,   label: 'Modules publiés',       value: totalModules ?? 0, gradient: 'from-cyan-500 to-blue-600'     },
+        { icon: CircleCheckBig,  label: 'Quiz complétés',        value: totalQuizzes ?? 0, gradient: 'from-pink-500 to-rose-600'     },
+        { icon: Crown,           label: 'Abonnés Illimité',      value: totalPremium ?? 0, gradient: 'from-amber-400 to-orange-500'  },
       ])
 
       // ── 5 derniers inscrits avec leur progression ────────────────────────────
@@ -123,11 +195,14 @@ export default function AdminHomePage() {
         .select('user_id, completed')
         .in('user_id', (users || []).map(u => u.id))
 
-      const { data: totalLessonsRow } = await supabase
+      // ─── Correction platform-2 : count côté serveur (HEAD request) ──────────
+      // Avant : .select('id', { head: false }) chargeait toutes les lignes en mémoire
+      // Après : .select('*', { count: 'exact', head: true }) → COUNT(*) SQL, 0 ligne transférée
+      const { count: totalLessonsCount } = await supabase
         .from('lessons')
-        .select('id', { count: 'exact', head: false })
+        .select('*', { count: 'exact', head: true })
 
-      const totalLessons = (totalLessonsRow || []).length || 1
+      const totalLessons = totalLessonsCount || 1
 
       // Calculer % progression par user
       const completedByUser = {}
@@ -147,10 +222,14 @@ export default function AdminHomePage() {
       }))
 
       setRecentUsers(enriched)
+      if (!silent) toast.success('Tableau de bord actualisé.')
 
     } catch (err) {
       console.error('[AdminHomePage]', err)
       setError('Impossible de charger les données du tableau de bord.')
+      if (!silent) toast.error('Impossible de charger les données du tableau de bord.')
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -165,11 +244,12 @@ export default function AdminHomePage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={fetchDashboardData}
-            className="flex items-center gap-1.5 text-sm text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors"
+            onClick={() => fetchDashboardData()}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 text-sm text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-[16px]">refresh</span>
-            Actualiser
+            <span className={`material-symbols-outlined text-[16px] ${refreshing ? 'animate-spin' : ''}`}>refresh</span>
+            {refreshing ? 'Actualisation…' : 'Actualiser'}
           </button>
           <div className="flex items-center gap-2 text-sm text-slate-500 bg-white border border-slate-200 px-4 py-2 rounded-xl">
             <span className="material-symbols-outlined text-[18px]">schedule</span>
@@ -194,13 +274,21 @@ export default function AdminHomePage() {
         {kpis === null
           ? [1,2,3,4].map(i => <KpiSkeleton key={i} />)
           : kpis.map(k => (
-              <div key={k.label} className={`bg-white rounded-2xl border ${k.border} p-6 hover:shadow-md transition-shadow`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className={`w-10 h-10 rounded-xl ${k.bg} flex items-center justify-center`}>
-                    <span className={`material-symbols-outlined text-[22px] ${k.color}`}>{k.icon}</span>
+              <div
+                key={k.label}
+                className="group bg-white rounded-2xl border border-slate-100 p-6 shadow-sm
+                           hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <div className="flex items-start justify-between mb-5">
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${k.gradient}
+                                    flex items-center justify-center shadow-md
+                                    group-hover:scale-105 transition-transform duration-200`}>
+                    <k.icon className="w-6 h-6 text-white" strokeWidth={2.2} />
                   </div>
+                  <ArrowUpRight className="w-4 h-4 text-slate-300 opacity-0 group-hover:opacity-100
+                                            transition-opacity duration-200" />
                 </div>
-                <p className="text-2xl font-bold text-slate-800 mb-1">
+                <p className="text-3xl font-bold font-display text-slate-800 mb-1 tracking-tight">
                   {k.value.toLocaleString('fr-FR')}
                 </p>
                 <p className="text-sm text-slate-500">{k.label}</p>
@@ -232,7 +320,7 @@ export default function AdminHomePage() {
                       Aucun utilisateur inscrit pour le moment
                     </div>
                   )
-                  : recentUsers.map((u, idx) => (
+                  : recentUsers.map((u) => (
                     <div key={u.id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
                       <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${u.grad} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
                         {u.initials}
@@ -265,7 +353,7 @@ export default function AdminHomePage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-6">
             <h2 className="text-base font-bold text-slate-800 mb-4">Alertes système</h2>
             <div className="space-y-3">
-              {alerts.map((a, i) => (
+              {generateDynamicAlerts(kpis, recentUsers).map((a, i) => (
                 <div key={i} className={`flex items-start gap-3 p-4 rounded-xl border ${a.border} ${a.bg}`}>
                   <span className={`material-symbols-outlined text-[20px] shrink-0 ${a.color}`}>{a.icon}</span>
                   <p className="text-sm text-slate-700">{a.message}</p>

@@ -64,7 +64,7 @@ export default function ModulePage() {
   const progress = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0
   const status = progress === 100 ? 'done' : completedCount > 0 ? 'active' : 'active'
 
-  const getLessonStatus = (lesson, index) => {
+  const getLessonStatus = (lesson) => {
     if (completedIds.has(lesson.id)) return 'done'
     // La première leçon non complétée est "active"
     const firstIncomplete = lessons.find(l => !completedIds.has(l.id))

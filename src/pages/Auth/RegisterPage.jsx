@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '@/services/authService'
 import { ROUTES } from '@/constants/routes'
-import logo from '@/assets/logo-iaai.png'
+import AuthHeader from '@/components/ui/AuthHeader'
 import AuthVisual from '@/components/ui/AuthVisual'
 
 function RegisterPage() {
@@ -58,13 +58,10 @@ function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#f8f5ff] font-sans antialiased">
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-10 py-4">
-        <img src={logo} alt="IAAI eLearning 101" className="h-14 object-contain" />
-      </header>
+      <AuthHeader />
 
       {/* Main */}
-      <main className="min-h-screen flex items-center justify-center pt-20 pb-12">
+      <main className="flex items-center justify-center pb-12 px-2">
         <div className="w-full max-w-[1200px] px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
           {/* Formulaire */}
@@ -101,7 +98,7 @@ function RegisterPage() {
                   placeholder="Ex: Amina Alami"
                   required
                   className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white text-[#0b1c30] text-base
-                             focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10 focus:outline-none transition-all"
+                             focus:border-[#8127cf] focus:ring-4 focus:ring-[#8127cf]/10 focus:outline-none transition-all"
                 />
               </div>
 
@@ -118,7 +115,7 @@ function RegisterPage() {
                   placeholder="amina@exemple.ma"
                   required
                   className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white text-[#0b1c30] text-base
-                             focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10 focus:outline-none transition-all"
+                             focus:border-[#8127cf] focus:ring-4 focus:ring-[#8127cf]/10 focus:outline-none transition-all"
                 />
               </div>
 
@@ -136,12 +133,12 @@ function RegisterPage() {
                     placeholder="••••••••"
                     required
                     className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white text-[#0b1c30] text-base
-                               focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10 focus:outline-none transition-all pr-12"
+                               focus:border-[#8127cf] focus:ring-4 focus:ring-[#8127cf]/10 focus:outline-none transition-all pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e7385] hover:text-[#6d28d9] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e7385] hover:text-[#8127cf] transition-colors"
                   >
                     <span className="material-symbols-outlined text-[20px]">
                       {showPassword ? 'visibility_off' : 'visibility'}
@@ -164,12 +161,12 @@ function RegisterPage() {
                     placeholder="••••••••"
                     required
                     className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white text-[#0b1c30] text-base
-                               focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10 focus:outline-none transition-all pr-12"
+                               focus:border-[#8127cf] focus:ring-4 focus:ring-[#8127cf]/10 focus:outline-none transition-all pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e7385] hover:text-[#6d28d9] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e7385] hover:text-[#8127cf] transition-colors"
                   >
                     <span className="material-symbols-outlined text-[20px]">
                       {showConfirm ? 'visibility_off' : 'visibility'}
@@ -202,7 +199,7 @@ function RegisterPage() {
 
             <p className="text-base text-[#4d4354] text-center lg:text-left">
               Déjà un compte ?{' '}
-              <Link to={ROUTES.LOGIN} className="text-[#6d28d9] font-bold hover:underline">
+              <Link to={ROUTES.LOGIN} className="text-[#8127cf] font-bold hover:underline">
                 Se connecter
               </Link>
             </p>
@@ -214,7 +211,7 @@ function RegisterPage() {
             topBadge={{ icon: 'auto_awesome', label: 'IA Apprenante' }}
             bottomCard={{
               icon: 'shield',
-              iconBg: 'bg-fuchsia-600',
+              iconBg: 'bg-[#ec4899]',
               title: 'Gratuit pour commencer',
               subtitle: 'Aucune carte bancaire',
             }}

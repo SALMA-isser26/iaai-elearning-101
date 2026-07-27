@@ -18,6 +18,7 @@ export const ROUTES = {
 
   // App
   DASHBOARD: '/dashboard',
+  CATALOGUE: '/catalogue',
   CURRICULUM: '/curriculum',
   COURSE: (id) => `/course/${id}`,
   MODULE: (id) => `/module/${id}`,
@@ -41,6 +42,7 @@ export const ROUTES = {
   // Profile & Settings
   PROFILE: '/profile',
   PROFILE_EDIT: '/profile/edit',
+  BOOKMARKS: '/bookmarks',
   SETTINGS: '/settings',
   SUBSCRIPTION: '/subscription',
   UPGRADE: '/subscription',   // ← alias pour les liens "Passer à Premium"
@@ -50,5 +52,11 @@ export const ROUTES = {
   ADMIN: '/admin',
   ADMIN_USERS: '/admin/users',
   ADMIN_COURSES: '/admin/courses',
+  ADMIN_LESSONS: '/admin/lessons',
+  ADMIN_QUIZZES: '/admin/quizzes',
+  ADMIN_TESTIMONIALS: '/admin/testimonials',
   ADMIN_ANALYTICS: '/admin/analytics',
+  ADMIN_PROCTORING: '/admin/proctoring',
+  ADMIN_FAQS: '/admin/faqs',
+  ADMIN_SETTINGS: '/admin/settings',
 }

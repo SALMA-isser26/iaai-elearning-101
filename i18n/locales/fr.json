@@ -1,0 +1,551 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "curriculum": "Mon Parcours IA",
+    "certificates": "Mes Certificats",
+    "community": "Communauté",
+    "settings": "Paramètres",
+    "profile": "Mon Profil",
+    "logout": "Déconnexion",
+    "upgrade": "Passer à Illimité",
+    "search": "Rechercher un cours...",
+    "notifications": "Notifications",
+    "catalogue": "Catalogue",
+    "open_menu": "Ouvrir le menu"
+  },
+  "auth": {
+    "login": {
+      "title": "Bon retour parmi nous",
+      "subtitle": "Connectez-vous pour continuer votre parcours IA",
+      "email": "Votre email",
+      "password": "Mot de passe",
+      "forgot": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "loading": "Connexion...",
+      "no_account": "Pas encore de compte ?",
+      "create_account": "Créer un compte gratuit",
+      "error": "Email ou mot de passe incorrect.",
+      "locked": "Trop de tentatives échouées. Réessayez dans {{minutes}} min."
+    },
+    "register": {
+      "title": "Créez votre compte gratuit",
+      "subtitle": "Rejoignez 2 400 apprenants au Maroc et ailleurs",
+      "full_name": "Votre nom complet",
+      "full_name_placeholder": "Ex : Amina Alami",
+      "email": "Votre email",
+      "email_placeholder": "amina@exemple.ma",
+      "password": "Créez un mot de passe",
+      "confirm_password": "Confirmez votre mot de passe",
+      "submit": "Créer mon compte",
+      "loading": "Création...",
+      "already_account": "Déjà un compte ?",
+      "login": "Se connecter",
+      "error_passwords": "Les mots de passe ne correspondent pas.",
+      "error_length": "Le mot de passe doit contenir au moins 6 caractères.",
+      "error_generic": "Une erreur est survenue.",
+      "top_badge": "IA Apprenante",
+      "free_badge_title": "Gratuit pour commencer",
+      "free_badge_subtitle": "Aucune carte bancaire"
+    },
+    "verify": {
+      "title": "Vérifiez votre email",
+      "subtitle": "Un code à 6 chiffres a été envoyé à",
+      "submit": "Vérifier mon compte",
+      "resend": "Renvoyer",
+      "no_code": "Vous n'avez pas reçu le code ?",
+      "resent": "Code renvoyé avec succès ✅",
+      "error_length": "Le code doit contenir 6 chiffres.",
+      "error_invalid": "Code invalide ou expiré. Vérifiez votre email.",
+      "error_resend": "Impossible de renvoyer le code."
+    },
+    "forgot": {
+      "title": "Mot de passe oublié ?",
+      "subtitle": "Entrez votre email et nous vous enverrons un lien de réinitialisation.",
+      "email": "Votre email",
+      "submit": "Envoyer le lien",
+      "loading": "Envoi...",
+      "back_to_login": "Retour à la connexion",
+      "success_title": "Email envoyé !",
+      "success_desc": "Vérifiez votre boîte mail. Le lien expire dans 1 heure.",
+      "error": "Aucun compte associé à cet email."
+    },
+    "reset": {
+      "title": "Nouveau mot de passe",
+      "subtitle": "Choisissez un nouveau mot de passe sécurisé.",
+      "new_password": "Nouveau mot de passe",
+      "confirm_password": "Confirmez le mot de passe",
+      "submit": "Réinitialiser",
+      "loading": "Réinitialisation...",
+      "success": "Mot de passe mis à jour ! Vous pouvez vous connecter.",
+      "error_passwords": "Les mots de passe ne correspondent pas.",
+      "error_length": "Le mot de passe doit contenir au moins 6 caractères.",
+      "error_generic": "Le lien est invalide ou expiré."
+    }
+  },
+  "onboarding": {
+    "step1": {
+      "badge": "Étape 1 sur 3",
+      "title_prefix": "Bienvenue sur",
+      "subtitle": "La plateforme marocaine pour apprendre l'IA de zéro, avec des animations qui rendent chaque concept limpide.",
+      "chips": {
+        "modules": "8 modules",
+        "lessons": "38 leçons",
+        "certified": "Certifié"
+      },
+      "start": "Commencer",
+      "skip": "Passer l'introduction"
+    },
+    "step2": {
+      "badge": "Étape 2 sur 3",
+      "title": "Quel est votre objectif principal ?",
+      "subtitle": "Choisissez ce qui vous motive pour qu'on personnalise votre parcours.",
+      "objectives": {
+        "career": "Évoluer dans ma carrière",
+        "curiosity": "Simple curiosité",
+        "work": "Appliquer l'IA au travail",
+        "certificate": "Obtenir un certificat"
+      },
+      "next": "Continuer",
+      "back": "Retour"
+    },
+    "step3": {
+      "badge": "Étape 3 sur 3",
+      "title": "Combien de temps par jour ?",
+      "subtitle": "On estime la durée de votre parcours selon votre rythme.",
+      "time_options": {
+        "15min": {
+          "value": "15 min",
+          "label": "Petits pas réguliers"
+        },
+        "30min": {
+          "value": "30 min",
+          "label": "Rythme soutenu"
+        },
+        "1h": {
+          "value": "1 h",
+          "label": "Immersion totale"
+        },
+        "flex": {
+          "value": "Flexible",
+          "label": "Selon mes disponibilités"
+        }
+      },
+      "goal_prefix": "Objectif :",
+      "per_day": "par jour",
+      "estimate_prefix": "Vous devriez terminer",
+      "estimate_suffix": "en environ {{weeks}} semaines.",
+      "flex_text": "Avancez à votre rythme, sans pression de calendrier.",
+      "finish": "Aller au dashboard",
+      "back": "Retour"
+    }
+  },
+  "dashboard": {
+    "greeting": "Bonjour {{name}}",
+    "subtitle": "Vous faites d'excellents progrès. Continuez ainsi !",
+    "progress_label": "Progression du cours",
+    "progress_value": "{{percent}}% ({{done}}/{{total}} leçons)",
+    "continue_btn": "Continuer le parcours",
+    "stats": {
+      "study_time": "Temps d'étude",
+      "lessons": "Leçons finies",
+      "quizzes": "Quiz réussis",
+      "certificates": "Certificats"
+    },
+    "roadmap_title": "Votre roadmap",
+    "activity_title": "Activité récente",
+    "recommendations_title": "Recommandé pour vous",
+    "status": {
+      "done": "Terminé",
+      "active": "En cours",
+      "locked": "Verrouillé"
+    },
+    "welcome_new": "Bienvenue sur IAAI eLearning ! Commencez votre premier module.",
+    "continue_learning": "Continuer l'apprentissage",
+    "start": "Commencer",
+    "weekly_goal_title": "Objectif Hebdomadaire",
+    "lessons_remaining": "Plus que {{count}} leçon(s) restante(s)",
+    "ready_for_quiz": "Prêt pour le quiz !",
+    "all_modules_done": "Tous les modules sont terminés !",
+    "start_module_prompt": "Commencez un module pour voir votre objectif",
+    "default_module_title": "Module 1 — Qu'est-ce que l'IA ?",
+    "lessons_completed_count": "{{completed}}/{{total}} leçons complétées",
+    "start_journey_prompt": "Commencez votre parcours dès maintenant !",
+    "module_progress_label": "Progression du module",
+    "continue_lesson": "Reprendre la leçon",
+    "start_now": "Commencer maintenant",
+    "status_new": "Nouveau",
+    "status_in_progress": "En cours",
+    "roadmap_unavailable": "Roadmap non disponible",
+    "badges_title": "Mes badges",
+    "badge_ai_explorer": "AI Explorer",
+    "badge_code_starter": "Code Starter",
+    "badge_quiz_master": "Quiz Master",
+    "empty_activity_title": "Aucune activité pour l'instant",
+    "empty_activity_subtitle": "Commencez une leçon pour voir votre historique ici",
+    "in_progress_percent": "En cours · {{percent}}%",
+    "upcoming": "À venir",
+    "default_activity_title": "Activité récente",
+    "recommendation_view": "Voir",
+    "recommendation_continue": "Continuer",
+    "recommendation_continue_prefix": "Continuer — {{title}}"
+  },
+  "curriculum": {
+    "title": "Mon Parcours IA",
+    "subtitle": "AI Foundations 101 — 8 modules · 38 leçons",
+    "unlock_after": "Terminez le module précédent pour débloquer",
+    "continue": "Continuer",
+    "start": "Commencer",
+    "locked": "Verrouillé",
+    "done": "Terminé",
+    "active": "En cours",
+    "lesson": "leçon",
+    "lessons": "leçons"
+  },
+  "lesson": {
+    "back": "Retour au module",
+    "lesson_of": "Leçon {{current}} / {{total}}",
+    "plan": "Plan de la leçon",
+    "tip": "💡 Astuce",
+    "try_code": "Essayer le code",
+    "run": "Exécuter",
+    "output": "Sortie",
+    "prev": "Leçon précédente",
+    "next": "Leçon suivante"
+  },
+  "quiz": {
+    "title": "Quiz",
+    "question_of": "Question {{current}} / {{total}}",
+    "validate": "Valider",
+    "next": "Question suivante",
+    "finish": "Terminer le quiz",
+    "result_title": "Résultat du quiz",
+    "score": "Score : {{score}}%",
+    "passed": "Réussi ✅",
+    "failed": "À reessayer ❌",
+    "retry": "Réessayer",
+    "back_to_module": "Retour au module"
+  },
+  "certificates": {
+    "title": "Mes Certificats",
+    "subtitle": "Vos réussites certifiées",
+    "download": "Télécharger",
+    "share": "Partager",
+    "empty": "Aucun certificat pour l'instant. Terminez un module pour en obtenir un !"
+  },
+  "community": {
+    "title": "Communauté",
+    "new_post": "Nouveau sujet",
+    "search": "Rechercher une discussion...",
+    "members_online": "Membres en ligne",
+    "trending": "Tendances",
+    "replies": "réponses",
+    "views": "vues",
+    "vote": "Voter"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "mark_all": "Tout marquer comme lu",
+    "empty": "Aucune notification",
+    "new": "Nouveau"
+  },
+  "profile": {
+    "title": "Mon Profil",
+    "edit": "Modifier",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "full_name": "Nom complet",
+    "email": "Email",
+    "bio": "Biographie",
+    "location": "Ville",
+    "joined": "Membre depuis",
+    "progress": "Progression",
+    "badges": "Badges"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Gérez vos préférences et votre compte.",
+    "account": "Compte",
+    "change_password": "Modifier le mot de passe",
+    "notifications": "Notifications",
+    "email_notifs": "Notifications par email",
+    "push_notifs": "Notifications push",
+    "language": "Langue",
+    "language_fr": "Français",
+    "language_ar": "العربية",
+    "danger_zone": "Zone dangereuse",
+    "delete_account": "Supprimer mon compte",
+    "save": "Enregistrer"
+  },
+  "upgrade": {
+    "title": "Passez à Illimité",
+    "subtitle": "Accédez à tout le contenu IAAI eLearning 101",
+    "popular": "Populaire",
+    "best_value": "Meilleur rapport",
+    "current": "Plan actuel",
+    "subscribe": "Choisir ce plan",
+    "per_month": "/mois",
+    "free": "À jamais"
+  },
+  "admin": {
+    "nav": {
+      "overview": "Vue d'ensemble",
+      "users": "Utilisateurs",
+      "courses": "Cours",
+      "analytics": "Statistiques",
+      "settings": "Paramètres"
+    },
+    "home": {
+      "title": "Tableau de bord admin",
+      "kpi_users": "Total Utilisateurs",
+      "kpi_subscriptions": "Abonnements Actifs",
+      "kpi_revenue": "Revenu Mensuel",
+      "kpi_success_rate": "Taux de Réussite"
+    },
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "search": "Rechercher un utilisateur...",
+      "add": "Ajouter un utilisateur",
+      "role": "Rôle",
+      "plan": "Plan",
+      "last_seen": "Dernière connexion",
+      "progress": "Progression"
+    },
+    "courses": {
+      "title": "Gestion des cours",
+      "add": "Ajouter un cours",
+      "status": "Statut",
+      "published": "Publié",
+      "draft": "Brouillon"
+    }
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "all": "Tous",
+    "yes": "Oui",
+    "no": "Non",
+    "free_plan": "Plan Gratuit",
+    "unlimited_plan": "Illimité",
+    "online": "En ligne",
+    "offline": "Hors ligne",
+    "not_found": "Page introuvable",
+    "go_home": "Retour à l'accueil"
+  },
+  "landing": {
+    "badge": "e-learning 101 · Nouvelle génération",
+    "hero_title_prefix": "La première plateforme francophone qui enseigne l'IA avec des",
+    "hero_title_gradient": "animations immersives",
+    "hero_subtitle": "Oubliez les cours théoriques ennuyeux. Plongez dans un univers où les concepts mathématiques deviennent des paysages interactifs et mémorables.",
+    "hero_cta_start": "Démarrer le cours",
+    "hero_cta_demo": "Voir la démo",
+    "stats": [
+      {
+        "value": "2 400+",
+        "label": "Apprenants"
+      },
+      {
+        "value": "4.9★",
+        "label": "Note moyenne"
+      },
+      {
+        "value": "64h",
+        "label": "De contenu"
+      },
+      {
+        "value": "92%",
+        "label": "Complétion"
+      }
+    ],
+    "features_title": "Pourquoi nous choisir ?",
+    "reasons": [
+      {
+        "title": "Moteur Visuel-First",
+        "text": "Visualisez les concepts de l'IA sous forme d'animations interactives. Chaque notion abstraite devient une image claire."
+      },
+      {
+        "title": "Neuro-Learning",
+        "text": "Un cursus structuré selon les découvertes en sciences cognitives pour maximiser la rétention et la mémorisation à long terme."
+      },
+      {
+        "title": "Certification Pro",
+        "text": "Obtenez un certificat de compétences reconnu par nos leaders de l'industrie technologique, valide votre capacité à appliquer concrètement l'IA."
+      }
+    ],
+    "journey_title": "Un parcours sans friction",
+    "dashboard_tag": "Dashboard intuitif",
+    "dashboard_title": "Suivez votre progression en temps réel",
+    "dashboard_text": "Notre tableau de bord intuitif vous permet de visualiser vos avancées, de reprendre là où vous étiez et de voir quels concepts vous avez déjà maîtrisés.",
+    "dashboard_items": [
+      "Vue d'ensemble de votre parcours",
+      "Badges de progression débloqués"
+    ],
+    "player_tag": "Lecteur vidéo animé",
+    "player_title": "Apprenez avec le Python Video Player",
+    "player_text": "Ne vous contentez pas de regarder. Interagissez avec le code directement dans le lecteur vidéo. Modifiez les paramètres et voyez l'impact sur l'IA en direct.",
+    "player_items": [
+      "Code sandbox intégré au flux vidéo",
+      "Animations synchronisées au code"
+    ],
+    "how_it_works_title": "Comment ça marche ?",
+    "steps": [
+      {
+        "number": "1",
+        "title": "Créez votre compte",
+        "text": "Inscription rapide, puis vérification email pour sécuriser le compte."
+      },
+      {
+        "number": "2",
+        "title": "Apprentissage immersif",
+        "text": "Regardez les animations, suivez les ressources et validez chaque étape par quiz."
+      },
+      {
+        "number": "3",
+        "title": "Certification",
+        "text": "Terminez le parcours et téléchargez votre certificat IAAI eLearning 101."
+      }
+    ],
+    "pricing_title": "Investissez dans votre futur",
+    "pricing_subtitle": "Des options flexibles pour tous les niveaux de passion.",
+    "plans": [
+      {
+        "name": "Gratuit",
+        "price": "0 MAD",
+        "period": "",
+        "cta": "S'inscrire",
+        "items": [
+          {
+            "text": "Module 1 complet",
+            "disabled": false
+          },
+          {
+            "text": "Accès à la communauté",
+            "disabled": false
+          },
+          {
+            "text": "Pas de certificat",
+            "disabled": true
+          }
+        ]
+      },
+      {
+        "name": "Illimité",
+        "price": "299 MAD",
+        "period": "paiement unique",
+        "cta": "Commencer maintenant",
+        "badge": "LE PLUS POPULAIRE",
+        "items": [
+          {
+            "text": "Accès à tous les modules",
+            "disabled": false
+          },
+          {
+            "text": "Modules interactifs 3D",
+            "disabled": false
+          },
+          {
+            "text": "Certificat officiel IAAI",
+            "disabled": false
+          },
+          {
+            "text": "Accès à vie, sans abonnement",
+            "disabled": false
+          }
+        ]
+      },
+      {
+        "name": "Équipe",
+        "price": "Sur mesure",
+        "period": "",
+        "cta": "Contacter les ventes",
+        "items": [
+          {
+            "text": "Licences d'équipe (5+)",
+            "disabled": false
+          },
+          {
+            "text": "Dashboard admin RH",
+            "disabled": false
+          },
+          {
+            "text": "Formation personnalisée",
+            "disabled": false
+          }
+        ]
+      }
+    ],
+    "footer_tagline": "La plateforme marocaine d'apprentissage de l'IA nouvelle génération. Visualisez le futur, maîtrisez la technologie.",
+    "footer_columns": [
+      {
+        "title": "Ressources",
+        "links": [
+          "Documentation",
+          "Webinaires",
+          "Tutoriels",
+          "Projets Open Source"
+        ]
+      },
+      {
+        "title": "Entreprise",
+        "links": [
+          "À propos",
+          "Blog",
+          "Carrières",
+          "Contact"
+        ]
+      },
+      {
+        "title": "Légal",
+        "links": [
+          "Confidentialité",
+          "Conditions d'usage",
+          "Cookies"
+        ]
+      }
+    ],
+    "footer_copyright": "© 2026 IAAI eLearning 101 — Fièrement conçu au Maroc",
+    "footer_status": "Tous les systèmes sont opérationnels",
+    "nav": {
+      "how_it_works": "Comment ça marche",
+      "courses": "Cours",
+      "pricing": "Tarifs",
+      "testimonials": "Témoignages",
+      "faq": "FAQ",
+      "login": "Connexion",
+      "cta": "Commencer gratuitement"
+    },
+    "faq_title": "Questions Fréquentes",
+    "faq_search_placeholder": "Rechercher une question...",
+    "faq_empty": "Aucune question ne correspond à votre recherche.",
+    "testimonials_title": "Ils apprennent avec nous"
+  },
+  "catalogue": {
+    "title": "Catalogue des cours",
+    "subtitle": "Explorez tous les modules disponibles et commencez votre parcours en IA",
+    "search_placeholder": "Rechercher un module...",
+    "filter_all": "Tous",
+    "filter_free": "Gratuit",
+    "filter_premium": "Premium",
+    "lessons_count": "{{count}} leçons",
+    "duration": "~{{duration}} min",
+    "free_badge": "Gratuit",
+    "premium_badge": "Premium",
+    "start_button": "Commencer",
+    "continue_button": "Continuer",
+    "review_button": "Revoir",
+    "unlock_button": "Débloquer",
+    "empty_state": "Aucun module ne correspond à votre recherche.",
+    "empty_title": "Aucun cours pour le moment",
+    "empty_subtitle": "Les cours seront bientôt disponibles."
+  }
+}

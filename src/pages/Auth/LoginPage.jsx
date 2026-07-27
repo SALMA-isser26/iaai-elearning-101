@@ -1,13 +1,15 @@
 // src/pages/Auth/LoginPage.jsx
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { login } from '@/services/authService'
 import { useAuthStore } from '@/store/authStore'
 import { ROUTES } from '@/constants/routes'
-import logo from '@/assets/logo-iaai.png'
+import AuthHeader from '@/components/ui/AuthHeader'
 import AuthVisual from '@/components/ui/AuthVisual'
 
 function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { setUser } = useAuthStore()
@@ -39,20 +41,22 @@ function LoginPage() {
         password: form.password,
       })
 
-      setUser(
-        {
-          id: data.user.id,
-          email: data.user.email,
-          fullName: data.user.user_metadata?.full_name || '',
-          role: data.user.user_metadata?.role || 'LEARNER',
-          isOnboardingComplete: true,
-        },
-        data.session.access_token
-      )
+      await setUser({
+        id: data.user.id,
+        email: data.user.email,
+        fullName: data.user.user_metadata?.full_name || '',
+        role: data.user.user_metadata?.role || 'LEARNER',
+        isOnboardingComplete: true,
+      })
 
       navigate(from, { replace: true })
-    } catch {
-      setError('Email ou mot de passe incorrect.')
+    } catch (err) {
+      if (err?.code === 'ACCOUNT_LOCKED') {
+        const minutes = Math.max(1, Math.ceil((err.retryAfterSeconds ?? 0) / 60))
+        setError(t('auth.login.locked', { minutes }))
+      } else {
+        setError(t('auth.login.error'))
+      }
     } finally {
       setIsLoading(false)
     }
@@ -61,13 +65,10 @@ function LoginPage() {
   return (
     <div className="min-h-screen bg-[#f8f5ff] font-sans antialiased">
 
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center px-6 md:px-10 py-4">
-        <img src={logo} alt="IAAI eLearning 101" className="h-14 object-contain" />
-      </header>
+      <AuthHeader />
 
       {/* Main */}
-      <main className="min-h-screen flex items-center justify-center pt-20 pb-12">
+      <main className="flex items-center justify-center pb-12 px-2">
         <div className="w-full max-w-[1200px] px-6 md:px-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
           {/* Formulaire */}
@@ -75,10 +76,10 @@ function LoginPage() {
 
             <div className="space-y-3">
               <h1 className="text-4xl md:text-5xl font-bold text-[#0b1c30] tracking-tight font-display">
-                Bon retour parmi nous
+                {t('auth.login.title')}
               </h1>
               <p className="text-lg text-[#7e7385]">
-                Connectez-vous pour continuer votre parcours IA
+                {t('auth.login.subtitle')}
               </p>
             </div>
 
@@ -94,7 +95,7 @@ function LoginPage() {
               {/* Email */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-[#4d4354]">
-                  Votre email
+                  {t('auth.login.email')}
                 </label>
                 <input
                   type="email"
@@ -104,7 +105,7 @@ function LoginPage() {
                   placeholder="amina@exemple.ma"
                   required
                   className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white text-[#0b1c30] text-base
-                             focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10 focus:outline-none transition-all"
+                             focus:border-[#8127cf] focus:ring-4 focus:ring-[#8127cf]/10 focus:outline-none transition-all"
                 />
               </div>
 
@@ -112,13 +113,13 @@ function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-[#4d4354]">
-                    Mot de passe
+                    {t('auth.login.password')}
                   </label>
                   <Link
                     to={ROUTES.FORGOT_PASSWORD}
-                    className="text-sm text-violet-700 hover:underline"
+                    className="text-sm text-[#8127cf] font-semibold hover:underline"
                   >
-                    Mot de passe oublié ?
+                    {t('auth.login.forgot')}
                   </Link>
                 </div>
                 <div className="relative">
@@ -130,12 +131,12 @@ function LoginPage() {
                     placeholder="••••••••"
                     required
                     className="w-full px-5 py-4 rounded-xl border border-[#f0f0f5] bg-white text-[#0b1c30] text-base
-                               focus:border-[#6d28d9] focus:ring-4 focus:ring-[#6d28d9]/10 focus:outline-none transition-all pr-12"
+                               focus:border-[#8127cf] focus:ring-4 focus:ring-[#8127cf]/10 focus:outline-none transition-all pr-12"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e7385] hover:text-[#6d28d9] transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7e7385] hover:text-[#8127cf] transition-colors"
                   >
                     <span className="material-symbols-outlined text-[20px]">
                       {showPassword ? 'visibility_off' : 'visibility'}
@@ -158,7 +159,7 @@ function LoginPage() {
                   <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
                 ) : (
                   <>
-                    Se connecter
+                    {t('auth.login.submit')}
                     <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
                   </>
                 )}
@@ -167,9 +168,9 @@ function LoginPage() {
             </form>
 
             <p className="text-base text-[#4d4354] text-center lg:text-left">
-              Pas encore de compte ?{' '}
-              <Link to={ROUTES.REGISTER} className="text-[#6d28d9] font-bold hover:underline">
-                Créer un compte gratuit
+              {t('auth.login.no_account')}{' '}
+              <Link to={ROUTES.REGISTER} className="text-[#8127cf] font-bold hover:underline">
+                {t('auth.login.create_account')}
               </Link>
             </p>
 

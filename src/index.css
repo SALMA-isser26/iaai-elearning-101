@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,17 +6,35 @@
 
 :root {
   --color-bg: #f8f5ff;
+  --color-bg-sidebar: #ffffff;
+  --color-bg-header: rgba(255, 255, 255, 0.85);
   --color-bg-card: #ffffff;
-  --color-bg-muted: #eee7ff;
-  --color-primary: #c026d3;
-  --color-primary-dark: #a21caf;
-  --color-accent: #0891b2;
-  --color-text: #17132f;
-  --color-text-muted: #68627a;
+  --color-bg-muted: #f0dbff;
+  --color-bg-hover: #f6effe;
+  --color-primary: #8127cf;
+  --color-primary-dark: #6b1fb0;
+  --color-accent: #ec4899;
+  --color-text: #0b1c30;
+  --color-text-muted: #7e7385;
   --color-border: #ded6f3;
   --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-display: 'Syne', sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+}
+
+.dark {
+  --color-bg: #0f172a;
+  --color-bg-sidebar: #1e293b;
+  --color-bg-header: rgba(15, 23, 42, 0.85);
+  --color-bg-card: #1e293b;
+  --color-bg-muted: #334155;
+  --color-bg-hover: #29344a;
+  --color-primary: #a855f7;
+  --color-primary-dark: #8127cf;
+  --color-accent: #ec4899;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-border: #334155;
 }
 
 @layer base {
@@ -37,6 +55,7 @@
     color: var(--color-text);
     line-height: 1.6;
     min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   h1,
@@ -46,8 +65,15 @@
   h5,
   h6 {
     font-family: var(--font-display);
-    font-weight: 700;
-    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+
+  p {
+    font-size: 1rem;
+    line-height: 1.75;
+    font-weight: 400;
   }
 
   ::-webkit-scrollbar {
@@ -75,23 +101,27 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-fuchsia-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-fuchsia-700 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    background: linear-gradient(135deg, #ec4899 0%, #a855f7 100%);
+    --tw-ring-color: #8127cf;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-violet-100 px-5 py-2.5 text-sm font-semibold text-violet-900 transition-colors duration-150 hover:bg-violet-200 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-[#f0dbff] px-5 py-2.5 text-sm font-bold text-[#8127cf] transition-colors duration-150 hover:bg-[#e4c5ff] focus:outline-none focus:ring-2 focus:ring-offset-2;
+    --tw-ring-color: #8127cf;
   }
 
   .btn-outline {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-violet-200 bg-white px-5 py-2.5 text-sm font-semibold text-violet-950 transition-colors duration-150 hover:border-fuchsia-300 hover:bg-fuchsia-50 focus:outline-none focus:ring-2 focus:ring-fuchsia-400 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#8127cf]/20 bg-white px-5 py-2.5 text-sm font-bold text-[#8127cf] transition-colors duration-150 hover:bg-[#8127cf]/5 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    --tw-ring-color: #8127cf;
   }
 
   .card {
-    @apply rounded-2xl border border-violet-100 bg-white p-6;
+    @apply rounded-2xl border border-[#8127cf]/10 bg-white p-6 shadow-sm;
   }
 
   .input {
-    @apply w-full rounded-xl border border-violet-100 bg-white px-4 py-2.5 text-sm transition-colors duration-150 placeholder:text-slate-400 focus:border-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500;
+    @apply w-full rounded-xl border border-[#ded6f3] bg-white px-4 py-2.5 text-sm transition-colors duration-150 placeholder:text-[#a89fb5] focus:border-[#8127cf] focus:outline-none focus:ring-2 focus:ring-[#8127cf]/30;
   }
 
   .page-container {
@@ -110,6 +140,12 @@
 
   .glass {
     @apply border border-white/50 bg-white/80 backdrop-blur-md;
+  }
+
+  .glass-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 1px 3px rgba(129, 39, 207, 0.06);
   }
 
   @keyframes wave-spin {

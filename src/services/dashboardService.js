@@ -1,5 +1,6 @@
 // src/services/dashboardService.js
 import { supabase } from '@/services/supabaseClient'
+import i18n from '@/i18n'
 
 // ─── Helpers de formatage ─────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function normalizeActivity(items) {
       icon: cfg.icon,
       bg: cfg.bg,
       text: cfg.text,
-      title: item.title || 'Activité récente',
+      title: item.title || i18n.t('dashboard.default_activity_title'),
       time: formatRelativeTime(item.created_at),
       extra: item.detail || '',
       extraClass: item.type === 'quiz' ? 'text-green-600 font-bold' : 'text-[#7e7385]',
@@ -57,7 +58,7 @@ function buildStats({ completedLessons, passedQuizzes, studyMinutes, certificate
       border: 'border-cyan-400',
       bg: 'bg-cyan-50',
       text: 'text-cyan-500',
-      label: "Temps d'étude",
+      label: i18n.t('dashboard.stats.study_time'),
       value: formatStudyTime(studyMinutes),
     },
     {
@@ -65,7 +66,7 @@ function buildStats({ completedLessons, passedQuizzes, studyMinutes, certificate
       border: 'border-violet-600',
       bg: 'bg-violet-50',
       text: 'text-violet-600',
-      label: 'Leçons finies',
+      label: i18n.t('dashboard.stats.lessons'),
       value: `${completedLessons} leçon${completedLessons !== 1 ? 's' : ''}`,
     },
     {
@@ -73,7 +74,7 @@ function buildStats({ completedLessons, passedQuizzes, studyMinutes, certificate
       border: 'border-pink-600',
       bg: 'bg-pink-50',
       text: 'text-pink-600',
-      label: 'Quiz réussis',
+      label: i18n.t('dashboard.stats.quizzes'),
       value: `${passedQuizzes} quiz`,
     },
     {
@@ -81,7 +82,7 @@ function buildStats({ completedLessons, passedQuizzes, studyMinutes, certificate
       border: 'border-purple-500',
       bg: 'bg-purple-50',
       text: 'text-purple-500',
-      label: 'Certificats',
+      label: i18n.t('dashboard.stats.certificates'),
       value: `${certificates} cert.`,
     },
   ]
@@ -126,7 +127,7 @@ function normalizeRecommendations(items, roadmap) {
       text: 'text-[#8127cf]',
       title: item.title,
       sub: item.subtitle || '',
-      btn: item.action_label || 'Voir',
+      btn: item.action_label || i18n.t('dashboard.recommendation_view'),
       route: item.route || '/curriculum',
     }))
   }
@@ -139,9 +140,9 @@ function normalizeRecommendations(items, roadmap) {
         icon: 'video_library',
         bg: 'bg-[#f0dbff]',
         text: 'text-[#8127cf]',
-        title: `Continuer — ${active.title}`,
+        title: i18n.t('dashboard.recommendation_continue_prefix', { title: active.title }),
         sub: `${active.completedLessons}/${active.totalLessons} leçons · ${active.progress}%`,
-        btn: 'Continuer',
+        btn: i18n.t('dashboard.recommendation_continue'),
         route: `/module/${active.id}`,
       },
     ]

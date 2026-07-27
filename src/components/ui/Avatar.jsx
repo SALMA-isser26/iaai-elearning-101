@@ -8,7 +8,6 @@
  *   <AvatarGroup users={[...]} max={4} />
  */
 
-import React from 'react';
 
 const SIZE_CLASSES = {
   xs: 'w-6 h-6 text-[10px]',

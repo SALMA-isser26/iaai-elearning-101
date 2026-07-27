@@ -1,4 +1,5 @@
 // src/pages/Community/CommunautePage.jsx
+import { useToast } from '@/components/ui/Toast'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabaseClient'
@@ -127,6 +128,7 @@ function PostSkeleton() {
 
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function CommunautePage() {
+  const { toast } = useToast()
   const { user } = useAuthStore()
 
   const [posts,           setPosts]           = useState([])
@@ -270,7 +272,7 @@ export default function CommunautePage() {
       await fetchData()
     } catch (err) {
       console.error('Erreur publication:', err)
-      alert('Erreur lors de la publication. Veuillez réessayer.')
+      toast.error('Erreur lors de la publication. Veuillez réessayer.')
     } finally {
       setSubmitting(false)
     }

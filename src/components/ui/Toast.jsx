@@ -13,7 +13,7 @@
  *   toast.info('Nouveau module disponible.', { duration: 6000 });
  */
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
 
 const ICONS = {
   success: (

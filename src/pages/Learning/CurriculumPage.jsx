@@ -1,9 +1,10 @@
 // src/pages/Learning/CurriculumPage.jsx
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { ROUTES } from '@/constants/routes'
 import { supabase } from '@/services/supabaseClient'
+import { generateCertificate } from '@/services/certificateService'
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 function Skeleton({ className = '' }) {
@@ -34,10 +35,13 @@ function StatusBadge({ status }) {
 
 export default function CurriculumPage() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
   const [overallPercent, setOverallPercent] = useState(0)
   const [overallCompleted, setOverallCompleted] = useState(0)
+  const [certLoading, setCertLoading] = useState(false)
+  const [certError, setCertError] = useState(null)
   const [overallTotal, setOverallTotal] = useState(0)
   // ─── AJOUT : durée totale calculée dynamiquement depuis les modules ────────
   const [totalDuration, setTotalDuration] = useState('')
@@ -131,10 +135,11 @@ export default function CurriculumPage() {
         const prevModDone    = idx === 0 || (base[idx - 1]?.progress === 100)
         const moduleUnlocked = idx === 0 || (isPremium && prevModDone)
 
-        let status = 'locked'
-        if (!moduleUnlocked)              status = 'locked'
-        else if (mod.progress === 100)    status = 'done'
-        else                              status = 'active'
+        const status = !moduleUnlocked
+          ? 'locked'
+          : mod.progress === 100
+            ? 'done'
+            : 'active'
 
         return { ...mod, status }
       })
@@ -150,6 +155,21 @@ export default function CurriculumPage() {
       console.error('CurriculumPage error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleGetCertificate = async () => {
+    if (!user?.id || certLoading) return
+    setCertLoading(true)
+    setCertError(null)
+    try {
+      await generateCertificate(user.id)
+      navigate(ROUTES.CERTIFICATES)
+    } catch (err) {
+      console.error('Erreur génération certificat:', err)
+      setCertError("Impossible de générer le certificat pour le moment. Réessaie dans un instant.")
+    } finally {
+      setCertLoading(false)
     }
   }
 
@@ -343,14 +363,23 @@ export default function CurriculumPage() {
                 </div>
               ))}
             </div>
-            <button disabled={overallPercent < 100}
+            <button
+              onClick={handleGetCertificate}
+              disabled={overallPercent < 100 || certLoading}
               className={`px-8 py-3 border-2 rounded-xl font-bold text-sm flex items-center gap-2
                           ${overallPercent === 100
                             ? 'border-[#8127cf] text-[#8127cf] hover:bg-[#8127cf]/5 cursor-pointer'
                             : 'border-[#7e7385] text-[#7e7385] cursor-not-allowed'}`}>
-              <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+              {certLoading ? (
+                <span className="animate-spin rounded-full h-4 w-4 border-2 border-[#8127cf] border-t-transparent" />
+              ) : (
+                <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+              )}
               {overallPercent === 100 ? 'Obtenir mon certificat' : 'Voir mon certificat'}
             </button>
+            {certError && (
+              <p className="text-xs text-red-500 max-w-xs text-center md:text-right">{certError}</p>
+            )}
           </div>
         </div>
       </div>

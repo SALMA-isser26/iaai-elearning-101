@@ -1,34 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
+:root {
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  
   --color-brand-bg: #fdf4ff;
   --color-brand-purple: #a855f7;
   --color-brand-pink: #ec4899;
   --color-brand-blue: #3b82f6;
   --color-brand-text: #1a1a2e;
-  
-  --animate-shimmer: shimmer 2.5s infinite linear;
-  --animate-float: float 4s ease-in-out infinite;
-  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
   }
-  @keyframes float {
-    0%, 100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-8px);
-    }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
   }
 }
 

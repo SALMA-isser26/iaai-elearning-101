@@ -124,7 +124,7 @@ export default function ProfilePage() {
       bg: 'bg-[#e5eeff]', text: 'text-[#7e7385]',
     },
     {
-      icon: 'trophy', label: 'Quiz Master',
+      icon: 'emoji_events', label: 'Quiz Master',
       status: quizPassed >= 3 ? 'done' : 'locked',
       bg: 'bg-[#e5eeff]', text: 'text-[#7e7385]',
     },
@@ -137,7 +137,7 @@ export default function ProfilePage() {
       <h2 className="text-3xl font-bold font-display text-[#0b1c30] mb-6">Mon Profil</h2>
 
       {/* ── Header card ────────────────────────────────────────────────────── */}
-      <section className="bg-white/70 backdrop-blur-md border border-white/50
+      <section className="bg-white border border-[#8127cf]/10
                           rounded-2xl p-8 flex flex-col md:flex-row items-center
                           gap-8 shadow-sm mb-6">
         {/* Avatar */}

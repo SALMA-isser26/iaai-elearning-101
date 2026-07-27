@@ -16,7 +16,7 @@
  *   <TabPanel value={tab} tab="overview">...</TabPanel>
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export const Tabs = ({
   tabs = [],
