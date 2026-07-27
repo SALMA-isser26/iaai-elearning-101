@@ -18,7 +18,7 @@
   ],
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
-    "@sentry/react": "^9.15.0",
+    "@sentry/react": "^10.68.0",
     "@supabase/supabase-js": "^2.108.2",
     "dotenv": "^17.4.2",
     "framer-motion": "^12.42.2",
